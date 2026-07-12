@@ -137,7 +137,7 @@ const LandingFooter = () => {
           }}
         >
           <span>© 2026 TransitOps · Smart Transport Operations Platform</span>
-          <span>Built for Hackathon · Team TransitOps</span>
+          <span>Built for Hackathon · Team Innov8ing 4u</span>
         </div>
       </div>
     </footer>
