@@ -1,12 +1,14 @@
 import { app } from "./app";
 import { env } from "./config/env";
 import { prisma } from "./config/prisma";
+import { startLicenseExpiryJob } from "./jobs/licenseExpiryJob";
 
 async function main() {
   await prisma.$connect();
   app.listen(env.port, () => {
     console.log(`TransitOps API listening on http://localhost:${env.port}`);
   });
+  startLicenseExpiryJob();
 }
 
 main().catch((error) => {
