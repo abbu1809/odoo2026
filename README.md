@@ -30,9 +30,7 @@
 - [Project Structure](#-project-structure)
 - [API Structure](#-api-structure)
 - [Database Schema](#-database-schema)
-- [Getting Started — Docker Compose](#-getting-started--docker-compose-recommended)
-- [Getting Started — Local Development](#-getting-started--local-development)
-- [Demo Accounts](#-demo-accounts)
+- [How to Run](#-how-to-run)
 - [Roadmap / Future Scope](#-roadmap--future-scope)
 - [Team](#-team)
 
@@ -44,13 +42,14 @@ Fleet operators juggle the same five questions every day: *which vehicle is free
 
 It's a full-stack **fleet & transport operations management system**: a hardened Express/Prisma API and a React SPA, wired together so that every trip, fuel fill-up, maintenance ticket, and expense automatically keeps vehicle and driver state consistent — no manual bookkeeping, no double-booked trucks.
 
-- 🚐 **Vehicle registry** with load capacity, odometer, and lifecycle status
+- 🚐 **Vehicle registry** with load capacity, odometer, region, and lifecycle status, plus attached documents (RC, insurance, permits)
 - 🧑‍✈️ **Driver profiles** with license expiry and a live safety score
 - 🗺️ **Trip lifecycle engine**: `DRAFT → DISPATCHED → COMPLETED / CANCELLED`, with guardrails that block overweight cargo, expired licenses, and unavailable assets
 - 🔧 **Maintenance workflow** that auto-flips a vehicle to `IN_SHOP` on open and back to `AVAILABLE` on close
-- ⛽ **Fuel & expense ledgers** tied to vehicles (and optionally trips)
-- 📊 **Computed KPIs** — Fuel Efficiency, Operational Cost, Vehicle ROI, Fleet Utilization — with one-click CSV export
-- 🔐 **5-role RBAC** (Admin, Fleet Manager, Driver, Safety Officer, Financial Analyst) enforced at the API layer
+- ⛽ **Fuel & expense ledgers** tied to vehicles (and optionally trips), owned by Financial Analyst
+- 📊 **Computed KPIs** — Fuel Efficiency, Operational Cost, Vehicle ROI, Fleet Utilization — with CSV + PDF export
+- 🔐 **5-role RBAC** (Admin, Fleet Manager, Driver, Safety Officer, Financial Analyst), each scoped to its own set of modules and enforced at the API layer, not just hidden in the UI
+- 🔒 **Account lockout** after 5 failed logins, and **email notifications** (welcome + license-expiry reminders)
 
 ---
 
@@ -58,29 +57,31 @@ It's a full-stack **fleet & transport operations management system**: a hardened
 
 | Module | Highlights |
 |---|---|
-| **Auth** | JWT bearer auth, bcrypt-hashed passwords, `/me` self-lookup |
-| **Vehicles** | Registry with type/status/region filters, capacity & odometer tracking |
-| **Drivers** | License category + expiry enforcement, safety score, availability status |
+| **Auth** | JWT bearer auth, bcrypt-hashed passwords, account lockout after 5 failed attempts, `/me` self-lookup |
+| **Vehicles** | Registry with type/status/region filters, sorting, CSV export, capacity & odometer tracking, document uploads (RC/insurance/permits) |
+| **Drivers** | License category + expiry enforcement, safety score, availability status, sorting, CSV export |
 | **Trips** | State machine with automatic vehicle/driver locking & release, cargo-weight validation against vehicle capacity |
 | **Maintenance** | Open/close tickets that drive vehicle status automatically |
-| **Fuel Logs** | Per-vehicle fill-ups, optionally linked to the trip they were bought for |
-| **Expenses** | Tolls, fines, permits, insurance — per-vehicle or fleet-wide |
-| **Dashboard** | At-a-glance KPI cards |
-| **Reports** | Fuel Efficiency · Operational Cost · ROI · Fleet Utilization, exportable as CSV |
+| **Fuel Logs & Expenses** | Per-vehicle fuel fill-ups and tolls/fines/permits/insurance, owned end-to-end by Financial Analyst, sortable, CSV export |
+| **Dashboard** | At-a-glance KPI cards, open to every role |
+| **Reports** | Fuel Efficiency · Operational Cost · ROI · Fleet Utilization, exportable as CSV or PDF |
+| **Notifications** | Welcome email on registration, daily license-expiry reminder job (logs to console if no SMTP is configured) |
 
 ---
 
 ## 🔐 Role-Based Access Control
 
-Every route is gated by `requireAuth` + `requireRole(...)` middleware — this is not a UI-only convention, it's enforced server-side.
+Every route is gated by `requireAuth` + `requireRole(...)` middleware, on **both reads and writes** — a role with no access to a module gets a 403, not just a hidden button. The client mirrors the same matrix to hide nav tabs and actions a role can't use.
 
-| Role | Access |
-|---|---|
-| **ADMIN** | Full control — user management, vehicle/driver deletion, everything below |
-| **FLEET_MANAGER** | Create/update vehicles, drivers, trips, maintenance, fuel logs, expenses |
-| **DRIVER** | Create/dispatch/complete trips, log fuel & expenses |
-| **SAFETY_OFFICER** | Manage driver records (licenses, safety compliance) |
-| **FINANCIAL_ANALYST** | Read-only — dashboard KPIs & reports (no write access to any resource) |
+| Role | Fleet | Drivers | Trips | Fuel/Exp. | Analytics |
+|---|---|---|---|---|---|
+| **Admin** | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Fleet Manager** | ✓ | ✓ | — | — | ✓ |
+| **Driver** *(dispatcher persona)* | view | — | ✓ | — | — |
+| **Safety Officer** | — | ✓ | view | — | — |
+| **Financial Analyst** | view | — | — | ✓ | ✓ |
+
+`✓` = full read/write, `view` = read-only, `—` = no access at all. Dashboard KPIs (the landing page) and Settings are open to every authenticated role; `/users` is Admin-only.
 
 ---
 
@@ -98,7 +99,7 @@ Every route is gated by `requireAuth` + `requireRole(...)` middleware — this i
                           prisma migrate deploy → seed
 ```
 
-Three containers, one Docker network, one named volume for Postgres data — orchestrated entirely by [`docker-compose.yml`](./docker-compose.yml).
+Three containers, one Docker network, two named volumes (Postgres data + uploaded vehicle documents) — orchestrated entirely by [`docker-compose.yml`](./docker-compose.yml).
 
 ---
 
@@ -107,7 +108,7 @@ Three containers, one Docker network, one named volume for Postgres data — orc
 | Layer | Technology |
 |---|---|
 | **Frontend** | React 19, Vite 7, React Router-free SPA via tab state, Recharts (charts), Lucide (icons) |
-| **Backend** | Node 24, Express 5, TypeScript, Zod (validation), JWT + bcryptjs (auth) |
+| **Backend** | Node 24, Express 5, TypeScript, Zod (validation), JWT + bcryptjs (auth), Multer (file uploads), Nodemailer (email), PDFKit (PDF export) |
 | **Database** | PostgreSQL 16, Prisma ORM 7 (`@prisma/adapter-pg`) |
 | **Infra** | Docker, Docker Compose, Nginx (static client), multi-stage Alpine images |
 | **Middleware** | Helmet, CORS, Morgan, cookie-parser |
@@ -118,46 +119,22 @@ Three containers, one Docker network, one named volume for Postgres data — orc
 
 ```
 odoo2026/
-├── docker-compose.yml        # 3-service orchestration: db · server · client
-├── .env.example               # Compose-level environment overrides
-├── schema.md                  # Full data-model reference (source of truth)
-│
-├── server/                    # Express + Prisma REST API
-│   ├── Dockerfile              # Multi-stage build (Alpine)
-│   ├── docker-entrypoint.sh    # migrate deploy → conditional seed → start
-│   ├── prisma/
-│   │   ├── schema.prisma        # Models, enums, relations
-│   │   ├── seed.ts              # Idempotent demo-data seeder
-│   │   └── migrations/
+├── docker-compose.yml   # 3-service orchestration: db · server · client
+├── server/              # Express + Prisma REST API
+│   ├── prisma/           # schema.prisma, migrations, seed.ts
 │   └── src/
-│       ├── app.ts               # Express app, middleware, route mounting
-│       ├── server.ts            # Entry point
-│       ├── config/              # env.ts, prisma.ts
-│       ├── middleware/          # auth, error, validate
-│       ├── utils/               # ApiError, jwt, csv, params
-│       └── modules/             # one folder per domain — routes/service/validation
-│           ├── auth/
-│           ├── users/
-│           ├── vehicles/
-│           ├── drivers/
-│           ├── trips/
-│           ├── maintenance/
-│           ├── fuel/
-│           ├── expenses/
-│           ├── dashboard/
-│           └── reports/
-│
-└── Client/                    # React + Vite SPA
-    ├── Dockerfile               # Multi-stage build → Nginx runtime
-    ├── nginx.conf
+│       ├── modules/       # one folder per domain (routes/service/validation)
+│       ├── middleware/    # auth, error, validate
+│       ├── utils/         # ApiError, jwt, csv, pdf, mailer, params
+│       └── jobs/          # license-expiry email job
+└── Client/              # React + Vite SPA
     └── src/
-        ├── api/                  # One file per resource (thin fetch wrappers)
-        ├── context/              # AppContext — auth/session state
-        ├── components/           # Navbar, Footer
-        ├── pages/                # Dashboard, TripManagement, VehicleRegistry,
-        │                         # DriverManagement, Maintenance, Expenses,
-        │                         # Reports, Settings, LandingPage, LoginPage
-        └── utils/                # enums.js (shared with backend enums)
+        ├── api/            # one thin fetch-wrapper file per resource
+        ├── context/        # AppContext — auth/session + RBAC state
+        ├── components/     # Navbar, Footer
+        ├── pages/          # Dashboard, Vehicles, Drivers, Trips, Maintenance,
+        │                   # Expenses, Reports, Settings, Login/Landing
+        └── utils/          # enums.js, shared formatters
 ```
 
 Each backend module is self-contained (`*.routes.ts`, `*.service.ts`, `*.validation.ts`) — new domains slot in without touching existing ones.
@@ -166,59 +143,37 @@ Each backend module is self-contained (`*.routes.ts`, `*.service.ts`, `*.validat
 
 ## 🔌 API Structure
 
-Base URL: **`/api/v1`** · Health check: `GET /health` (no prefix, no auth)
+Base URL: **`/api/v1`** · Health check: `GET /health` (no prefix, no auth). Every route requires `Authorization: Bearer <token>` except `/auth/register` and `/auth/login`. Full endpoint-by-endpoint reference (methods, roles, request/response shapes) lives in **[`server/API.md`](./server/API.md)**.
 
-All routes below require `Authorization: Bearer <token>` unless noted **public**. Roles shown are the *write* roles — reads are open to any authenticated user.
+| Resource | Base path | Owned by (per RBAC matrix) |
+|---|---|---|
+| Auth | `/auth` | Public login/register, `/me` for any authenticated user |
+| Users | `/users` | Admin |
+| Vehicles + documents | `/vehicles`, `/vehicle-documents` | Fleet Manager |
+| Drivers | `/drivers` | Fleet Manager, Safety Officer |
+| Trips | `/trips` | Driver |
+| Maintenance | `/maintenance` | Fleet Manager |
+| Fuel logs & expenses | `/fuel-logs`, `/expenses` | Financial Analyst |
+| Dashboard | `/dashboard/kpis` | Any authenticated role |
+| Reports | `/reports/overview` (`?format=csv\|pdf`) | Fleet Manager, Financial Analyst |
 
-| Resource | Endpoint | Method | Access |
-|---|---|---|---|
-| **Auth** | `/auth/register` | `POST` | Public |
-| | `/auth/login` | `POST` | Public |
-| | `/auth/me` | `GET` | Any authenticated user |
-| **Users** | `/users`, `/users/:id` | `GET` | Admin |
-| | `/users/:id` | `PATCH` | Admin |
-| **Vehicles** | `/vehicles`, `/vehicles/:id` | `GET` | Any |
-| | `/vehicles` | `POST` | Admin, Fleet Manager |
-| | `/vehicles/:id` | `PATCH` | Admin, Fleet Manager |
-| | `/vehicles/:id` | `DELETE` | Admin |
-| **Drivers** | `/drivers`, `/drivers/:id` | `GET` | Any |
-| | `/drivers` | `POST` | Admin, Fleet Manager, Safety Officer |
-| | `/drivers/:id` | `PATCH` | Admin, Fleet Manager, Safety Officer |
-| | `/drivers/:id` | `DELETE` | Admin |
-| **Trips** | `/trips`, `/trips/:id` | `GET` | Any |
-| | `/trips` | `POST` | Admin, Fleet Manager, Driver |
-| | `/trips/:id` | `PATCH` | Admin, Fleet Manager, Driver *(DRAFT only)* |
-| | `/trips/:id/dispatch` | `POST` | Admin, Fleet Manager, Driver |
-| | `/trips/:id/complete` | `POST` | Admin, Fleet Manager, Driver |
-| | `/trips/:id/cancel` | `POST` | Admin, Fleet Manager, Driver |
-| **Maintenance** | `/maintenance`, `/maintenance/:id` | `GET` | Any |
-| | `/maintenance` | `POST` | Admin, Fleet Manager |
-| | `/maintenance/:id` | `PATCH` | Admin, Fleet Manager |
-| | `/maintenance/:id/close` | `POST` | Admin, Fleet Manager |
-| **Fuel Logs** | `/fuel-logs`, `/fuel-logs/:id` | `GET` | Any |
-| | `/fuel-logs` | `POST` | Admin, Fleet Manager, Driver |
-| | `/fuel-logs/:id` | `PATCH` / `DELETE` | Admin, Fleet Manager, Driver |
-| **Expenses** | `/expenses`, `/expenses/:id` | `GET` | Any |
-| | `/expenses` | `POST` | Admin, Fleet Manager, Driver |
-| | `/expenses/:id` | `PATCH` / `DELETE` | Admin, Fleet Manager, Driver |
-| **Dashboard** | `/dashboard/kpis` | `GET` | Any |
-| **Reports** | `/reports/overview` (+`?format=csv`) | `GET` | Any |
-
-Every mutating route runs through a Zod schema in `*.validation.ts` before it touches the database.
+List endpoints support pagination, filtering, `sortBy`/`sortOrder`, and (except maintenance) `?format=csv`. Every mutating route runs through a Zod schema in `*.validation.ts` before it touches the database.
 
 ---
 
 ## 🗄️ Database Schema
 
-Modeled with Prisma on PostgreSQL — full column-level reference lives in **[`schema.md`](./schema.md)**. Summary:
+Modeled with Prisma on PostgreSQL — full column-level reference lives in **[`server/schema.md`](./server/schema.md)**. Entities: `Users, Vehicles, VehicleDocuments, Drivers, Trips, MaintenanceLogs, FuelLogs, Expenses`.
 
 ```
 User ──< Driver (optional 1:1)        Vehicle ──< Trip
-User ──< Trip / MaintenanceLog        Vehicle ──< MaintenanceLog
-User ──< FuelLog / Expense            Vehicle ──< FuelLog / Expense
-                                       Driver  ──< Trip
-                                       Trip    ──< FuelLog (optional)
+User ──< Trip / MaintenanceLog        Vehicle ──< MaintenanceLog / FuelLog / Expense
+User ──< FuelLog / Expense            Vehicle ──< VehicleDocument
+User ──< VehicleDocument              Driver  ──< Trip
+                                      Trip    ──< FuelLog (optional)
 ```
+
+Two enums were simplified to match what the product actually uses: `VehicleType` is just `TRUCK | VAN | MINI | OTHER`, and `Vehicle.region` is a fixed `Region` enum (`NORTH | EAST | SOUTH | WEST`) instead of a freeform string.
 
 **Derived KPIs** (computed in `modules/reports`, not stored columns):
 
@@ -231,108 +186,31 @@ User ──< FuelLog / Expense            Vehicle ──< FuelLog / Expense
 
 ---
 
-## 🚀 Getting Started — Docker Compose (recommended)
-
-The fastest path to a fully working stack — Postgres, API, and SPA — with **zero manual DB setup**. Migrations and demo data are applied automatically on first boot.
-
-### Prerequisites
-
-- [Docker](https://www.docker.com/) and Docker Compose v2
-
-### 1. Clone & configure
+## 🚀 How to Run
 
 ```bash
-git clone <this-repo-url>
-cd odoo2026
-cp .env.example .env
-```
-
-The defaults in `.env` work out of the box for local use — only change them if a port is already taken or you're deploying somewhere real (rotate `JWT_SECRET` first).
-
-### 2. Bring the stack up
-
-```bash
+git clone <this-repo-url> && cd odoo2026
 docker compose up --build -d
 ```
 
-Under the hood, `docker-compose.yml` starts three services:
-
-| Service | Image / Build | Purpose |
-|---|---|---|
-| `db` | `postgres:16-alpine` | Database, with a healthcheck (`pg_isready`) the API waits on |
-| `server` | built from `./server` | API — waits for `db` to be healthy, then runs its entrypoint |
-| `client` | built from `./Client` | React SPA, built and served by Nginx |
-
-On startup, `server/docker-entrypoint.sh` runs, in order:
-
-```bash
-npx prisma migrate deploy        # applies every migration in prisma/migrations
-node dist/prisma/seed.js         # runs server/prisma/seed.ts — idempotent, safe to re-run
-```
-
-**[`prisma/seed.ts`](./server/prisma/seed.ts)** upserts everything by its unique key (email, registration number, license number), so re-running it — which happens on *every* container restart by default — never duplicates data. It seeds:
-
-- 5 demo users (one per role — see [Demo Accounts](#-demo-accounts))
-- 5 vehicles across every status (`AVAILABLE`, `IN_SHOP`, `RETIRED`) and type (van, truck, bus, car, trailer)
-- 4 drivers spanning every `DriverStatus`, including an expiring license and a suspended driver — useful for exercising the trip guardrails
-- One completed sample trip with a linked fuel log, expense, and two maintenance logs (one open, one closed) — so the Dashboard and Reports pages aren't empty on first login
-
-Once you no longer want fresh demo data recreated on every restart, set in `.env`:
-
-```bash
-SEED_ON_START=false
-```
-
-### 3. Open it
+That's it — Postgres, the API, and the SPA all come up together, with migrations and demo data applied automatically on first boot. No `.env` file is required; every variable in `docker-compose.yml` falls back to a sane local default (rotate `JWT_SECRET` and set the `SMTP_*` vars before deploying anywhere real).
 
 | | URL |
 |---|---|
-| **Client (SPA)** | http://localhost:5173 |
-| **API base** | http://localhost:4000/api/v1 |
+| **Frontend (SPA)** | http://localhost:5173 |
+| **Backend (API base)** | http://localhost:4000/api/v1 |
 | **Health check** | http://localhost:4000/health |
 
-> ⚠️ `VITE_API_BASE_URL` is baked into the client bundle **at build time** (Vite convention). If you change it in `.env`, you must rebuild the client image: `docker compose build client && docker compose up -d client`.
-
-### 4. Tear down
+### Tear down
 
 ```bash
-docker compose down          # stop containers, keep the pgdata volume
-docker compose down -v       # also wipe the database volume
+docker compose down          # stop containers, keep the pgdata + uploads volumes
+docker compose down -v       # also wipe the database and uploaded documents
 ```
 
----
+### Demo accounts
 
-## 🧑‍💻 Getting Started — Local Development
-
-Prefer running each piece natively (hot reload, debugger attached)? You'll need Node 24+, npm, and a local/remote PostgreSQL instance.
-
-### Backend
-
-```bash
-cd server
-cp .env.example .env          # point DATABASE_URL at your own Postgres
-npm install
-npm run prisma:migrate         # creates tables from schema.prisma
-npm run prisma:seed            # builds + runs prisma/seed.ts
-npm run dev                    # ts-node-dev, hot reload on :4000
-```
-
-Other useful scripts: `npm run prisma:studio` (visual DB browser), `npm run build` / `npm start` (production build).
-
-### Frontend
-
-```bash
-cd Client
-cp .env.example .env          # VITE_API_BASE_URL → your API
-npm install
-npm run dev                    # Vite dev server on :5173
-```
-
----
-
-## 🔑 Demo Accounts
-
-Seeded by [`seed.ts`](./server/prisma/seed.ts) — all five share one password.
+Seeded by [`server/prisma/seed.ts`](./server/prisma/seed.ts) — all five share one password.
 
 | Email | Role | Password |
 |---|---|---|
@@ -342,17 +220,15 @@ Seeded by [`seed.ts`](./server/prisma/seed.ts) — all five share one password.
 | `safety@transitops.io` | SAFETY_OFFICER | `Password123!` |
 | `finance@transitops.io` | FINANCIAL_ANALYST | `Password123!` |
 
-Log in as each one to see how the UI and permissions shift per role.
+Log in as each one to see how the nav, pages, and permissions shift per role.
 
 ---
 
 ## 🗺️ Roadmap / Future Scope
 
-- [ ] **Login rate-limiting** — lock an account out after 5 failed attempts
-- [ ] **Frontend route guarding** — hide nav items/actions the current role can't use, not just block them server-side
-- [ ] **Immutable fuel-log audit trail** — currently a driver can delete a fuel log after the fact, silently skewing fuel-efficiency reports; move toward soft-delete + change history
+- [ ] **Immutable fuel-log/expense audit trail** — currently Financial Analyst can delete a fuel log or expense after the fact, silently skewing reports; move toward soft-delete + change history
 - [ ] **Clarify maintenance ownership** — decide whether Fleet Managers should close tickets independently of Admin, or require sign-off
-- [ ] **CSV export everywhere** — extend the reports export to trips, fuel logs, and expenses, not just the vehicle overview
+- [ ] **Object storage for vehicle documents** — swap the local-disk/Docker-volume upload for S3-compatible storage in production
 - [ ] **Automated test suite** — unit tests for trip-guardrail logic, integration tests per module
 - [ ] **CI/CD pipeline** — lint + build + migration dry-run on every PR
 - [ ] **Real-time trip updates** — WebSocket/SSE push when a trip is dispatched/completed instead of polling
