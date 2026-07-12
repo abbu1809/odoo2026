@@ -13,38 +13,47 @@ import {
 import { closeMaintenance, openMaintenance } from "./maintenance.service";
 
 const router = Router();
+
+// Section 8 (RBAC) - falls under the "Fleet" column: Fleet Manager manages
+// it, Driver and Financial Analyst can view, Safety Officer has no access.
 const MANAGE_ROLES = [UserRole.ADMIN, UserRole.FLEET_MANAGER];
+const READ_ROLES = [UserRole.ADMIN, UserRole.FLEET_MANAGER, UserRole.DRIVER, UserRole.FINANCIAL_ANALYST];
 
 router.use(requireAuth);
 
-router.get("/", validate({ query: listMaintenanceQuerySchema }), async (req, res) => {
-  const { vehicleId, status, page, pageSize } = req.validatedQuery as unknown as {
-    vehicleId?: string;
-    status?: MaintenanceStatus;
-    page: number;
-    pageSize: number;
-  };
+router.get(
+  "/",
+  requireRole(...READ_ROLES),
+  validate({ query: listMaintenanceQuerySchema }),
+  async (req, res) => {
+    const { vehicleId, status, page, pageSize } = req.validatedQuery as unknown as {
+      vehicleId?: string;
+      status?: MaintenanceStatus;
+      page: number;
+      pageSize: number;
+    };
 
-  const where = {
-    ...(vehicleId ? { vehicleId } : {}),
-    ...(status ? { status } : {}),
-  };
+    const where = {
+      ...(vehicleId ? { vehicleId } : {}),
+      ...(status ? { status } : {}),
+    };
 
-  const [logs, total] = await Promise.all([
-    prisma.maintenanceLog.findMany({
-      where,
-      include: { vehicle: { select: { id: true, registrationNumber: true, name: true } } },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.maintenanceLog.count({ where }),
-  ]);
+    const [logs, total] = await Promise.all([
+      prisma.maintenanceLog.findMany({
+        where,
+        include: { vehicle: { select: { id: true, registrationNumber: true, name: true } } },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.maintenanceLog.count({ where }),
+    ]);
 
-  res.json({ success: true, data: logs, meta: { page, pageSize, total } });
-});
+    res.json({ success: true, data: logs, meta: { page, pageSize, total } });
+  },
+);
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireRole(...READ_ROLES), async (req, res) => {
   const log = await prisma.maintenanceLog.findUnique({
     where: { id: requireParam(req, "id") },
     include: { vehicle: true },

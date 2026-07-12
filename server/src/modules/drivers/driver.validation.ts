@@ -14,10 +14,15 @@ export const createDriverSchema = z.object({
 
 export const updateDriverSchema = createDriverSchema.partial();
 
+const DRIVER_SORT_FIELDS = ["name", "licenseExpiryDate", "safetyScore", "createdAt"] as const;
+
 export const listDriversQuerySchema = z.object({
   status: z.enum(DriverStatus).optional(),
   search: z.string().trim().optional(),
   expiringWithinDays: z.coerce.number().int().min(0).optional(),
+  sortBy: z.enum(DRIVER_SORT_FIELDS).default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  format: z.enum(["csv"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

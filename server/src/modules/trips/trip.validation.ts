@@ -25,10 +25,15 @@ export const completeTripSchema = z.object({
   revenue: z.number().nonnegative().optional(),
 });
 
+const TRIP_SORT_FIELDS = ["source", "destination", "cargoWeightKg", "plannedDistanceKm", "createdAt"] as const;
+
 export const listTripsQuerySchema = z.object({
   status: z.enum(TripStatus).optional(),
   vehicleId: z.string().optional(),
   driverId: z.string().optional(),
+  sortBy: z.enum(TRIP_SORT_FIELDS).default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  format: z.enum(["csv"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
