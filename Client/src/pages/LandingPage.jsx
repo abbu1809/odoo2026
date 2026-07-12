@@ -2,12 +2,53 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { ArrowRight, Truck, Shield, DollarSign, Activity, FileText } from 'lucide-react';
 
-const LandingPage = ({ setActiveTab }) => {
+const LandingPage = ({ setActiveTab, onLoginClick, isLoggedIn }) => {
   const { activeUserRole } = useApp();
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', overflow: 'hidden', maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
       
+      {/* Landing Page Header */}
+      <header style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '20px 0',
+        borderBottom: '1px solid rgba(0,0,0,0.05)',
+        marginBottom: '40px',
+        position: 'relative',
+        zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', position: 'relative', width: '32px', height: '20px', flexShrink: 0 }}>
+            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#EB001B', position: 'absolute', left: 0, opacity: 0.9 }} />
+            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#F79E1B', position: 'absolute', left: '12px', opacity: 0.9 }} />
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink-black)' }}>
+            Transit<span style={{ color: 'var(--signal-orange)' }}>Ops</span>
+          </h2>
+        </div>
+        <div>
+          {isLoggedIn ? (
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              className="btn-primary"
+              style={{ borderRadius: 'var(--radius-btn)' }}
+            >
+              Go to App <ArrowRight size={16} />
+            </button>
+          ) : (
+            <button 
+              onClick={onLoginClick} 
+              className="btn-primary"
+              style={{ borderRadius: 'var(--radius-btn)' }}
+            >
+              Sign In
+            </button>
+          )}
+        </div>
+      </header>
+
       {/* Background Ghost Watermark */}
       <div 
         className="ghost-watermark" 
@@ -34,7 +75,13 @@ const LandingPage = ({ setActiveTab }) => {
           </p>
           <div style={{ display: 'inline-flex', gap: '16px' }}>
             <button 
-              onClick={() => setActiveTab('dashboard')} 
+              onClick={() => {
+                if (isLoggedIn) {
+                  setActiveTab('dashboard');
+                } else {
+                  onLoginClick();
+                }
+              }} 
               className="btn-primary"
               style={{ padding: '12px 36px', borderRadius: 'var(--radius-pill-btn)' }}
             >
@@ -42,8 +89,12 @@ const LandingPage = ({ setActiveTab }) => {
             </button>
             <button 
               onClick={() => {
-                const demoBtn = document.querySelector('.interactive-demo-panel button');
-                if (demoBtn) demoBtn.click();
+                if (isLoggedIn) {
+                  const demoBtn = document.querySelector('.interactive-demo-panel button');
+                  if (demoBtn) demoBtn.click();
+                } else {
+                  onLoginClick();
+                }
               }} 
               className="btn-secondary"
               style={{ padding: '12px 36px', borderRadius: 'var(--radius-pill-btn)' }}
@@ -58,7 +109,7 @@ const LandingPage = ({ setActiveTab }) => {
           className="card-elevated"
           style={{
             height: '420px',
-            borderRadius: 'var(--radius-card)',
+            borderRadius: '32px',
             backgroundImage: 'linear-gradient(rgba(20,20,19,0.7), rgba(20,20,19,0.3)), url("https://images.unsplash.com/photo-1516576885502-b2d3080c501f?auto=format&fit=crop&w=1200&q=80")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
@@ -92,6 +143,7 @@ const LandingPage = ({ setActiveTab }) => {
         <div style={{ position: 'relative', height: '550px', maxWidth: '1000px', margin: '0 auto' }}>
           {/* SVG Orbital Arcs */}
           <svg 
+            viewBox="0 0 1000 550"
             style={{ 
               position: 'absolute', 
               top: 0, 
@@ -102,42 +154,53 @@ const LandingPage = ({ setActiveTab }) => {
               zIndex: 0 
             }}
           >
-            {/* Curved Path 1 to 2 */}
             <path 
-              d="M 160 160 Q 300 40 500 160" 
+              d="M 150 275 Q 280 180 500 130" 
               fill="none" 
               stroke="var(--light-signal-orange)" 
               strokeWidth="1.5" 
               strokeDasharray="4 4" 
             />
-            {/* Curved Path 2 to 3 */}
             <path 
-              d="M 500 160 Q 700 320 840 160" 
+              d="M 500 130 Q 720 180 850 275" 
               fill="none" 
               stroke="var(--light-signal-orange)" 
               strokeWidth="1.5" 
               strokeDasharray="4 4" 
             />
-            {/* Center connector */}
             <path 
-              d="M 500 160 Q 500 380 500 380" 
+              d="M 850 275 Q 720 370 500 430" 
               fill="none" 
               stroke="var(--light-signal-orange)" 
-              strokeWidth="1" 
+              strokeWidth="1.5" 
+              strokeDasharray="4 4" 
+            />
+            <path 
+              d="M 500 430 Q 280 370 150 275" 
+              fill="none" 
+              stroke="var(--light-signal-orange)" 
+              strokeWidth="1.5" 
+              strokeDasharray="4 4" 
             />
           </svg>
 
           {/* Node 1: Vehicle Registry (Left) */}
-          <div style={{ position: 'absolute', top: '40px', left: '20px', zIndex: 2, textAlign: 'center' }}>
+          <div style={{ position: 'absolute', top: '150px', left: '40px', zIndex: 2, textAlign: 'center' }}>
             <div className="orbit-container" style={{ width: '220px', height: '220px' }}>
               <div className="circle-portrait">
                 <img 
-                  src="https://images.unsplash.com/photo-1506015391300-4802dc74de2e?auto=format&fit=crop&w=300&q=80" 
+                  src="https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=300&q=80" 
                   alt="Vehicles" 
                 />
               </div>
               <button 
-                onClick={() => setActiveTab('vehicles')} 
+                onClick={() => {
+                  if (isLoggedIn) {
+                    setActiveTab('vehicles');
+                  } else {
+                    onLoginClick();
+                  }
+                }} 
                 className="satellite-cta"
                 title="Go to Vehicle Registry"
               >
@@ -151,16 +214,22 @@ const LandingPage = ({ setActiveTab }) => {
           </div>
 
           {/* Node 2: Dispatches & Planning (Center Top) */}
-          <div style={{ position: 'absolute', top: '10px', left: '390px', zIndex: 2, textAlign: 'center' }}>
+          <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: 2, textAlign: 'center' }}>
             <div className="orbit-container" style={{ width: '240px', height: '240px' }}>
               <div className="circle-portrait">
                 <img 
-                  src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=300&q=80" 
+                  src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=300&q=80" 
                   alt="Dispatch" 
                 />
               </div>
               <button 
-                onClick={() => setActiveTab('trips')} 
+                onClick={() => {
+                  if (isLoggedIn) {
+                    setActiveTab('trips');
+                  } else {
+                    onLoginClick();
+                  }
+                }} 
                 className="satellite-cta"
                 title="Go to Trip Management"
               >
@@ -174,7 +243,7 @@ const LandingPage = ({ setActiveTab }) => {
           </div>
 
           {/* Node 3: Driver Safety Compliance (Right) */}
-          <div style={{ position: 'absolute', top: '40px', right: '20px', zIndex: 2, textAlign: 'center' }}>
+          <div style={{ position: 'absolute', top: '150px', right: '40px', zIndex: 2, textAlign: 'center' }}>
             <div className="orbit-container" style={{ width: '220px', height: '220px' }}>
               <div className="circle-portrait">
                 <img 
@@ -183,7 +252,13 @@ const LandingPage = ({ setActiveTab }) => {
                 />
               </div>
               <button 
-                onClick={() => setActiveTab('drivers')} 
+                onClick={() => {
+                  if (isLoggedIn) {
+                    setActiveTab('drivers');
+                  } else {
+                    onLoginClick();
+                  }
+                }} 
                 className="satellite-cta"
                 title="Go to Driver Profiles"
               >
@@ -197,16 +272,22 @@ const LandingPage = ({ setActiveTab }) => {
           </div>
 
           {/* Node 4: ROI & Expenses (Center Bottom) */}
-          <div style={{ position: 'absolute', bottom: '10px', left: '390px', zIndex: 2, textAlign: 'center' }}>
+          <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: 2, textAlign: 'center' }}>
             <div className="orbit-container" style={{ width: '220px', height: '220px' }}>
               <div className="circle-portrait">
                 <img 
-                  src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=300&q=80" 
+                  src="https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?auto=format&fit=crop&w=300&q=80" 
                   alt="Expenses" 
                 />
               </div>
               <button 
-                onClick={() => setActiveTab('reports')} 
+                onClick={() => {
+                  if (isLoggedIn) {
+                    setActiveTab('reports');
+                  } else {
+                    onLoginClick();
+                  }
+                }} 
                 className="satellite-cta"
                 title="Go to Financial Reports"
               >
@@ -284,7 +365,7 @@ const LandingPage = ({ setActiveTab }) => {
       <section style={{
         padding: '64px',
         backgroundColor: 'var(--lifted-cream)',
-        borderRadius: 'var(--radius-card)',
+        borderRadius: '32px',
         border: '1px solid rgba(0,0,0,0.05)',
         marginBottom: '60px',
         display: 'flex',
