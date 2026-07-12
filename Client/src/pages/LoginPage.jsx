@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const LoginPage = ({ onLogin }) => {
+const LoginPage = ({ onLogin, onBack }) => {
   const [email, setEmail] = useState('Ravee.k@transitops.in');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Dispatcher');
@@ -45,7 +45,7 @@ const LoginPage = ({ onLogin }) => {
       {/* Left Panel — Branding */}
       <div className="login-left">
         <div>
-          <div className="login-brand">
+          <div className="login-brand" onClick={onBack} style={{ cursor: onBack ? 'pointer' : 'default' }}>
             <div className="login-brand-logo">
               <div className="login-brand-circle-1" />
               <div className="login-brand-circle-2" />
@@ -83,6 +83,27 @@ const LoginPage = ({ onLogin }) => {
       {/* Right Panel — Form */}
       <div className="login-right">
         <div className="login-form-container">
+          {onBack && (
+            <button 
+              type="button" 
+              onClick={onBack}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--slate-gray)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.9rem',
+                marginBottom: '20px',
+                fontWeight: 500,
+                padding: 0
+              }}
+            >
+              ← Back to Home
+            </button>
+          )}
           <h2>Sign in to your account</h2>
           <p className="login-form-subtitle">Enter your credentials to continue</p>
 
