@@ -1,11 +1,9 @@
-#backend
+# Backend Missing features
 
-- driver can delete feul log that can create mismatch in report.
-- export csv
-- make sure shown only those option in frontend that are accessible to perticular user 
-
-admin maintaincde only done by the admin but what about feet manager 
-
-- there is no rate limitng on user login but there should be and limit of 5 time and then user got blocked 
-
+- [ ] Export csv feature
+- [ ] Add export PDF
+- [ ] Email for license expiry, welcome, and other that used (HTML template)
+- [ ] Vehicle documentation
+- [ ] Filter, Sorting, search
+- [ ] Rate limiting (lock for some time after 5 unsuccessful attempts)
 
