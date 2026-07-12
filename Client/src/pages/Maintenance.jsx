@@ -1,29 +1,34 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-
-const statusClass = (s) => {
-  const m = { 'Active': 'in-shop', 'Completed': 'completed' };
-  return `status-badge status-badge-${m[s] || 'draft'}`;
-};
+import { formatMoney } from '../utils/enums';
 
 const Maintenance = () => {
-  const { vehicles, maintenanceLogs, addMaintenanceLog, completeMaintenanceLog, activeUserRole, getPermission } = useApp();
+  const { vehicles, maintenanceLogs, addMaintenanceLog, completeMaintenanceLog, canWrite } = useApp();
 
-  const [form, setForm] = useState({
-    vehicleId: '', type: '', cost: '', date: '2026-07-12', description: '', status: 'Active'
-  });
+  const [form, setForm] = useState({ vehicleId: '', type: '', cost: '', description: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [busyId, setBusyId] = useState(null);
 
-  const canEdit = getPermission('maintenance') === 'Full';
+  const canEdit = canWrite('maintenance');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const ok = addMaintenanceLog(form);
+    setSubmitting(true);
+    const ok = await addMaintenanceLog(form);
+    setSubmitting(false);
     if (ok) {
-      setForm({ vehicleId: '', type: '', cost: '', date: '2026-07-12', description: '', status: 'Active' });
+      setForm({ vehicleId: '', type: '', cost: '', description: '' });
     }
   };
 
-  const nonRetiredVehicles = vehicles.filter(v => v.status !== 'Retired');
+  const handleResolve = async (id) => {
+    setBusyId(id);
+    await completeMaintenanceLog(id);
+    setBusyId(null);
+  };
+
+  const vehicleById = (id) => vehicles.find((v) => v.id === id);
+  const nonRetiredVehicles = vehicles.filter((v) => v.status !== 'RETIRED');
 
   return (
     <div>
@@ -35,34 +40,27 @@ const Maintenance = () => {
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Vehicle</label>
-                <select className="form-select" required value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}>
+                <select className="form-select" required value={form.vehicleId} onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}>
                   <option value="">Select vehicle...</option>
-                  {nonRetiredVehicles.map(v => (
-                    <option key={v.registrationNumber} value={v.registrationNumber}>{v.registrationNumber}</option>
+                  {nonRetiredVehicles.map((v) => (
+                    <option key={v.id} value={v.id}>{v.registrationNumber}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
                 <label>Service Type</label>
-                <input className="form-input" required value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} placeholder="Oil Change" />
+                <input className="form-input" required value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} placeholder="Oil Change" />
               </div>
               <div className="form-group">
                 <label>Cost</label>
-                <input className="form-input" type="number" required value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} placeholder="2500" />
+                <input className="form-input" type="number" required value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="2500" />
               </div>
               <div className="form-group">
-                <label>Date</label>
-                <input className="form-input" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+                <label>Description</label>
+                <input className="form-input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional notes" />
               </div>
-              <div className="form-group">
-                <label>Status</label>
-                <select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-                  <option value="Active">Active</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-              <button type="submit" className="btn-action btn-action-primary" style={{ width: '100%', marginTop: 4 }}>
-                Save
+              <button type="submit" className="btn-action btn-action-primary" style={{ width: '100%', marginTop: 4 }} disabled={submitting}>
+                {submitting ? 'Saving…' : 'Save'}
               </button>
             </form>
 
@@ -99,27 +97,31 @@ const Maintenance = () => {
                 </tr>
               </thead>
               <tbody>
-                {maintenanceLogs.map(log => (
-                  <tr key={log.id}>
-                    <td style={{ fontWeight: 600 }}>{log.vehicleId}</td>
-                    <td>{log.type}</td>
-                    <td>{log.cost.toLocaleString()}</td>
-                    <td><span className={statusClass(log.status)}>{log.status === 'Active' ? 'In Shop' : 'Completed'}</span></td>
-                    {canEdit && (
-                      <td>
-                        {log.status === 'Active' && (
-                          <button
-                            className="btn-action btn-action-success"
-                            style={{ padding: '4px 14px', fontSize: '0.78rem' }}
-                            onClick={() => completeMaintenanceLog(log.id)}
-                          >
-                            Resolve
-                          </button>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                ))}
+                {maintenanceLogs.map((log) => {
+                  const vehicle = vehicleById(log.vehicleId);
+                  return (
+                    <tr key={log.id}>
+                      <td style={{ fontWeight: 600 }}>{vehicle?.registrationNumber || log.vehicleId}</td>
+                      <td>{log.type}</td>
+                      <td>{formatMoney(log.cost)}</td>
+                      <td><span className={`status-badge status-badge-${log.status === 'OPEN' ? 'in-shop' : 'completed'}`}>{log.status === 'OPEN' ? 'In Shop' : 'Closed'}</span></td>
+                      {canEdit && (
+                        <td>
+                          {log.status === 'OPEN' && (
+                            <button
+                              className="btn-action btn-action-success"
+                              style={{ padding: '4px 14px', fontSize: '0.78rem' }}
+                              disabled={busyId === log.id}
+                              onClick={() => handleResolve(log.id)}
+                            >
+                              Resolve
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
                 {maintenanceLogs.length === 0 && (
                   <tr><td colSpan={canEdit ? 5 : 4} style={{ textAlign: 'center', color: 'var(--slate-gray)', padding: 32 }}>No maintenance records.</td></tr>
                 )}

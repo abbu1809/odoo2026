@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   LayoutDashboard, Truck, Users, MapPin, Wrench,
-  Receipt, BarChart3, Settings, Search, ChevronDown
+  Receipt, BarChart3, Settings, Search, ChevronDown, LogOut
 } from 'lucide-react';
+import { humanize } from '../utils/enums';
 
 const navItems = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -16,25 +17,10 @@ const navItems = [
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
-const roles = [
-  { name: 'Fleet Manager', color: '#3860BE', desc: 'Fleet, Maintenance' },
-  { name: 'Driver', color: '#4CAF50', desc: 'Dashboard, Trips' },
-  { name: 'Safety Officer', color: '#CF4500', desc: 'Drivers, Compliance' },
-  { name: 'Financial Analyst', color: '#7F6000', desc: 'Expenses, Analytics' },
-];
-
 const Sidebar = ({ activeTab, setActiveTab }) => {
-  const { activeUserRole, setActiveUserRole, showToast, hasAccess } = useApp();
-
-  const visibleItems = navItems.filter(item => hasAccess(item.key));
-
   return (
     <aside className="sidebar no-print">
-      <div className="sidebar-brand" onClick={() => {
-        // Redirect to first authorized tab
-        const first = visibleItems[0]?.key || 'dashboard';
-        setActiveTab(first);
-      }}>
+      <div className="sidebar-brand" onClick={() => setActiveTab('dashboard')}>
         <div style={{ display: 'flex', position: 'relative', width: '32px', height: '20px', flexShrink: 0 }}>
           <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#EB001B', position: 'absolute', left: 0, opacity: 0.9 }} />
           <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#F79E1B', position: 'absolute', left: '12px', opacity: 0.9 }} />
@@ -43,7 +29,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       </div>
 
       <nav className="sidebar-nav">
-        {visibleItems.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
@@ -61,15 +47,16 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   );
 };
 
-const Topbar = ({ userName }) => {
-  const { activeUserRole, setActiveUserRole, showToast } = useApp();
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+const Topbar = () => {
+  const { user, logout } = useApp();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleRoleChange = (roleName) => {
-    setActiveUserRole(roleName);
-    setRoleDropdownOpen(false);
-    showToast(`Switched to ${roleName} view`, 'info');
-  };
+  const initials = (user?.name || '?')
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
   return (
     <div className="topbar no-print">
@@ -79,42 +66,32 @@ const Topbar = ({ userName }) => {
       </div>
 
       <div className="topbar-user">
-        <span className="topbar-user-name">{userName || 'Ravee K.'}</span>
+        <span className="topbar-user-name">{user?.name}</span>
 
         <div style={{ position: 'relative' }}>
-          <button
-            className="topbar-role-badge"
-            onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-          >
-            {activeUserRole === 'Driver' ? 'Dispatcher' : activeUserRole.split(' ').map(w => w[0]).join('')}
+          <button className="topbar-role-badge" onClick={() => setMenuOpen(!menuOpen)}>
+            {initials}
             <ChevronDown size={14} />
           </button>
 
-          {roleDropdownOpen && (
+          {menuOpen && (
             <>
-              <div className="dropdown-backdrop" onClick={() => setRoleDropdownOpen(false)} />
+              <div className="dropdown-backdrop" onClick={() => setMenuOpen(false)} />
               <div className="dropdown-menu">
-                <div className="dropdown-header">Access Level Switcher</div>
-                {roles.map((r) => (
-                  <button
-                    key={r.name}
-                    className={`dropdown-item${activeUserRole === r.name ? ' active' : ''}`}
-                    onClick={() => handleRoleChange(r.name)}
-                  >
-                    <div
-                      className="dropdown-item-icon"
-                      style={{ background: `${r.color}18`, color: r.color }}
-                    >
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>
-                        {r.name.split(' ').map(w => w[0]).join('')}
-                      </span>
-                    </div>
-                    <div className="dropdown-item-text">
-                      <span>{r.name}</span>
-                      <span>{r.desc}</span>
-                    </div>
-                  </button>
-                ))}
+                <div className="dropdown-header">Signed in as</div>
+                <div style={{ padding: '4px 16px 12px', fontSize: '0.85rem' }}>
+                  <div style={{ fontWeight: 700 }}>{user?.name}</div>
+                  <div style={{ color: 'var(--slate-gray)' }}>{user?.email}</div>
+                  <div style={{ color: 'var(--slate-gray)', marginTop: 2 }}>{humanize(user?.role)}</div>
+                </div>
+                <button className="dropdown-item" onClick={logout}>
+                  <div className="dropdown-item-icon" style={{ background: '#F4433618', color: '#F44336' }}>
+                    <LogOut size={14} />
+                  </div>
+                  <div className="dropdown-item-text">
+                    <span>Log out</span>
+                  </div>
+                </button>
               </div>
             </>
           )}

@@ -1,43 +1,42 @@
 import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { ROLES, humanize } from '../utils/enums';
 
-const LoginPage = ({ onLogin, onBack }) => {
-  const [email, setEmail] = useState('Ravee.k@transitops.in');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Dispatcher');
-  const [remember, setRemember] = useState(true);
+const LoginPage = ({ onBack }) => {
+  const { login, register, authLoading } = useApp();
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [error, setError] = useState('');
-  const [attempts, setAttempts] = useState(0);
 
-  const roleMap = {
-    'Fleet Manager': 'Fleet Manager',
-    'Dispatcher': 'Driver',
-    'Safety Officer': 'Safety Officer',
-    'Financial Analyst': 'Financial Analyst'
-  };
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [registerForm, setRegisterForm] = useState({
+    name: '', email: '', password: '', role: 'FLEET_MANAGER',
+  });
 
-  const handleSubmit = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-
-    if (!email.trim() || !password.trim()) {
+    setError('');
+    if (!loginForm.email.trim() || !loginForm.password.trim()) {
       setError('Please fill in all fields.');
       return;
     }
+    const result = await login(loginForm.email.trim(), loginForm.password);
+    if (!result.ok) setError(result.error);
+  };
 
-    if (attempts >= 5) {
-      setError('Account locked after 5 failed attempts.');
-      return;
-    }
-
-    // Demo credentials — any password works
-    if (password.length < 3) {
-      setAttempts(prev => prev + 1);
-      setError('Invalid credentials. ' + (5 - attempts - 1) + ' attempts remaining.');
-      return;
-    }
-
+  const handleRegister = async (e) => {
+    e.preventDefault();
     setError('');
-    const mappedRole = roleMap[role] || 'Fleet Manager';
-    onLogin(mappedRole, email.split('@')[0]);
+    if (!registerForm.name.trim() || !registerForm.email.trim() || !registerForm.password.trim()) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    const result = await register({
+      name: registerForm.name.trim(),
+      email: registerForm.email.trim(),
+      password: registerForm.password,
+      role: registerForm.role,
+    });
+    if (!result.ok) setError(result.error);
   };
 
   return (
@@ -56,24 +55,13 @@ const LoginPage = ({ onLogin, onBack }) => {
         </div>
 
         <div className="login-roles">
-          <h3>One login, four roles:</h3>
+          <h3>One account, five roles:</h3>
           <ul>
-            <li>
-              <span className="login-role-dot" style={{ background: '#F5A623' }} />
-              Fleet Manager
-            </li>
-            <li>
-              <span className="login-role-dot" style={{ background: '#4CAF50' }} />
-              Dispatcher
-            </li>
-            <li>
-              <span className="login-role-dot" style={{ background: '#2196F3' }} />
-              Safety Officer
-            </li>
-            <li>
-              <span className="login-role-dot" style={{ background: '#9C27B0' }} />
-              Financial Analyst
-            </li>
+            <li><span className="login-role-dot" style={{ background: '#F5A623' }} />Fleet Manager</li>
+            <li><span className="login-role-dot" style={{ background: '#4CAF50' }} />Driver</li>
+            <li><span className="login-role-dot" style={{ background: '#2196F3' }} />Safety Officer</li>
+            <li><span className="login-role-dot" style={{ background: '#9C27B0' }} />Financial Analyst</li>
+            <li><span className="login-role-dot" style={{ background: '#141413' }} />Admin</li>
           </ul>
         </div>
 
@@ -84,90 +72,137 @@ const LoginPage = ({ onLogin, onBack }) => {
       <div className="login-right">
         <div className="login-form-container">
           {onBack && (
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={onBack}
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--slate-gray)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.9rem',
-                marginBottom: '20px',
-                fontWeight: 500,
-                padding: 0
+                background: 'none', border: 'none', color: 'var(--slate-gray)', cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem',
+                marginBottom: '20px', fontWeight: 500, padding: 0,
               }}
             >
               ← Back to Home
             </button>
           )}
-          <h2>Sign in to your account</h2>
-          <p className="login-form-subtitle">Enter your credentials to continue</p>
 
-          {error && (
-            <div className="login-error-box">
-              <span style={{ fontSize: '1rem' }}>✕</span>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="login-field">
-              <label>Email</label>
-              <input
-                type="text"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-              />
-            </div>
-
-            <div className="login-field">
-              <label>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div className="login-field">
-              <label>Role (RBAC)</label>
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="Fleet Manager">Fleet Manager</option>
-                <option value="Dispatcher">Dispatcher</option>
-                <option value="Safety Officer">Safety Officer</option>
-                <option value="Financial Analyst">Financial Analyst</option>
-              </select>
-            </div>
-
-            <div className="login-options">
-              <label className="login-remember">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={() => setRemember(!remember)}
-                />
-                Remember me
-              </label>
-              <span className="login-forgot">Forgot password?</span>
-            </div>
-
-            <button type="submit" className="login-submit-btn">
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(''); }}
+              className={mode === 'login' ? 'btn-action btn-action-primary' : 'btn-action btn-action-secondary'}
+              style={{ flex: 1 }}
+            >
               Sign In
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => { setMode('register'); setError(''); }}
+              className={mode === 'register' ? 'btn-action btn-action-primary' : 'btn-action btn-action-secondary'}
+              style={{ flex: 1 }}
+            >
+              Create Account
+            </button>
+          </div>
+
+          {mode === 'login' ? (
+            <>
+              <h2>Sign in to your account</h2>
+              <p className="login-form-subtitle">Enter your credentials to continue</p>
+
+              {error && (
+                <div className="login-error-box">
+                  <span style={{ fontSize: '1rem' }}>✕</span>
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleLogin}>
+                <div className="login-field">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={loginForm.email}
+                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <div className="login-field">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    value={loginForm.password}
+                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <button type="submit" className="login-submit-btn" disabled={authLoading}>
+                  {authLoading ? 'Signing in…' : 'Sign In'}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <h2>Create your account</h2>
+              <p className="login-form-subtitle">No accounts exist yet? Register the first one here.</p>
+
+              {error && (
+                <div className="login-error-box">
+                  <span style={{ fontSize: '1rem' }}>✕</span>
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleRegister}>
+                <div className="login-field">
+                  <label>Full Name</label>
+                  <input
+                    type="text"
+                    value={registerForm.name}
+                    onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                    placeholder="Priya Shah"
+                  />
+                </div>
+                <div className="login-field">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={registerForm.email}
+                    onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <div className="login-field">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    value={registerForm.password}
+                    onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="login-field">
+                  <label>Role (RBAC)</label>
+                  <select
+                    value={registerForm.role}
+                    onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value })}
+                  >
+                    {ROLES.map((r) => <option key={r} value={r}>{humanize(r)}</option>)}
+                  </select>
+                </div>
+                <button type="submit" className="login-submit-btn" disabled={authLoading}>
+                  {authLoading ? 'Creating account…' : 'Create Account'}
+                </button>
+              </form>
+            </>
+          )}
 
           <div className="login-access-info">
-            <strong>Access is scoped by role after login:</strong><br />
-            • Fleet Manager → Fleet, Maintenance<br />
-            • Dispatcher → Dashboard, Trips<br />
-            • Safety Officer → Drivers, Compliance<br />
-            • Financial Analyst → Fuel & Expenses, Analytics
+            <strong>Access is scoped by role:</strong><br />
+            • Fleet Manager → Vehicles, Drivers, Maintenance, Reports<br />
+            • Driver → Trips, Fuel logs, Expenses<br />
+            • Safety Officer → Drivers & compliance<br />
+            • Financial Analyst → Expenses & Reports<br />
+            • Admin → Full access + user management
           </div>
         </div>
       </div>

@@ -1,72 +1,63 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-
-const statusColor = (s) => {
-  const m = {
-    'Available': 'available', 'On Trip': 'on-trip', 'In Shop': 'in-shop',
-    'Retired': 'retired', 'Completed': 'completed', 'Dispatched': 'dispatched',
-    'Draft': 'draft', 'Cancelled': 'cancelled'
-  };
-  return `status-badge status-badge-${m[s] || 'draft'}`;
-};
+import { VEHICLE_TYPES, VEHICLE_STATUSES, humanize, slug } from '../utils/enums';
 
 const Dashboard = () => {
-  const { vehicles, drivers, trips, expenses, fuelLogs } = useApp();
+  const { vehicles, drivers, trips, dashboardKpis, refreshDashboard } = useApp();
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterRegion, setFilterRegion] = useState('All');
 
-  const filtered = useMemo(() => {
-    return vehicles.filter(v => {
-      if (filterType !== 'All' && v.type !== filterType) return false;
-      if (filterStatus !== 'All' && v.status !== filterStatus) return false;
-      if (filterRegion !== 'All' && v.region !== filterRegion) return false;
-      return true;
+  useEffect(() => {
+    refreshDashboard({
+      type: filterType !== 'All' ? filterType : undefined,
+      status: filterStatus !== 'All' ? filterStatus : undefined,
+      region: filterRegion !== 'All' ? filterRegion : undefined,
     });
-  }, [vehicles, filterType, filterStatus, filterRegion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterType, filterStatus, filterRegion]);
 
-  // KPIs
-  const activeVehicles = vehicles.filter(v => v.status !== 'Retired').length;
-  const availableVehicles = vehicles.filter(v => v.status === 'Available').length;
-  const inMaintenance = vehicles.filter(v => v.status === 'In Shop').length;
-  const activeTrips = trips.filter(t => t.status === 'Dispatched').length;
-  const pendingTrips = trips.filter(t => t.status === 'Draft').length;
-  const driversOnDuty = drivers.filter(d => d.status === 'On Trip').length;
-  const fleetUtil = activeVehicles > 0
-    ? Math.round(((activeVehicles - availableVehicles) / activeVehicles) * 100)
-    : 0;
+  const regions = useMemo(
+    () => Array.from(new Set(vehicles.map((v) => v.region).filter(Boolean))),
+    [vehicles]
+  );
+
+  const vehicleById = (id) => vehicles.find((v) => v.id === id);
+  const driverById = (id) => drivers.find((d) => d.id === id);
 
   // Recent trips
-  const recentTrips = [...trips].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5);
+  const recentTrips = [...trips]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
 
-  // Vehicle status distribution
+  // Vehicle status distribution (client-side, from the full vehicle list)
   const statusCounts = {
-    Available: vehicles.filter(v => v.status === 'Available').length,
-    'On Trip': vehicles.filter(v => v.status === 'On Trip').length,
-    'In Shop': vehicles.filter(v => v.status === 'In Shop').length,
-    Retired: vehicles.filter(v => v.status === 'Retired').length,
+    AVAILABLE: vehicles.filter((v) => v.status === 'AVAILABLE').length,
+    ON_TRIP: vehicles.filter((v) => v.status === 'ON_TRIP').length,
+    IN_SHOP: vehicles.filter((v) => v.status === 'IN_SHOP').length,
+    RETIRED: vehicles.filter((v) => v.status === 'RETIRED').length,
   };
-
   const maxCount = Math.max(...Object.values(statusCounts), 1);
-  const barColors = { Available: '#4CAF50', 'On Trip': '#2196F3', 'In Shop': '#FF9800', Retired: '#F44336' };
+  const barColors = { AVAILABLE: '#4CAF50', ON_TRIP: '#2196F3', IN_SHOP: '#FF9800', RETIRED: '#F44336' };
+
+  const k = dashboardKpis || {};
 
   return (
     <div>
       {/* Filters */}
       <div className="filter-bar">
         <label>Filters:</label>
-        <select className="filter-select" value={filterType} onChange={e => setFilterType(e.target.value)}>
+        <select className="filter-select" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
           <option value="All">Vehicle Type: All</option>
-          {['Van', 'Truck', 'Sedan', 'Semi'].map(t => <option key={t} value={t}>{t}</option>)}
+          {VEHICLE_TYPES.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}
         </select>
-        <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <select className="filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           <option value="All">Status: All</option>
-          {['Available', 'On Trip', 'In Shop', 'Retired'].map(s => <option key={s} value={s}>{s}</option>)}
+          {VEHICLE_STATUSES.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
         </select>
-        <select className="filter-select" value={filterRegion} onChange={e => setFilterRegion(e.target.value)}>
+        <select className="filter-select" value={filterRegion} onChange={(e) => setFilterRegion(e.target.value)}>
           <option value="All">Region: All</option>
-          {['North', 'East', 'South', 'West'].map(r => <option key={r} value={r}>{r}</option>)}
+          {regions.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
       </div>
 
@@ -74,32 +65,38 @@ const Dashboard = () => {
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-label">Active Vehicles</div>
-          <div className="kpi-value">{activeVehicles}</div>
+          <div className="kpi-value">{k.activeVehicles ?? '—'}</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Available Vehicles</div>
-          <div className="kpi-value">{availableVehicles}</div>
+          <div className="kpi-value">{k.availableVehicles ?? '—'}</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Vehicles in Maintenance</div>
-          <div className="kpi-value">{String(inMaintenance).padStart(2, '0')}</div>
+          <div className="kpi-value">{k.vehiclesInMaintenance != null ? String(k.vehiclesInMaintenance).padStart(2, '0') : '—'}</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Active Trips</div>
-          <div className="kpi-value">{activeTrips}</div>
+          <div className="kpi-value">{k.activeTrips ?? '—'}</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Pending Trips</div>
-          <div className="kpi-value">{String(pendingTrips).padStart(2, '0')}</div>
+          <div className="kpi-value">{k.pendingTrips != null ? String(k.pendingTrips).padStart(2, '0') : '—'}</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Drivers on Duty</div>
-          <div className="kpi-value">{driversOnDuty}</div>
+          <div className="kpi-value">{k.driversOnDuty ?? '—'}</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Fleet Utilization</div>
-          <div className="kpi-value">{fleetUtil}%</div>
+          <div className="kpi-value">{k.fleetUtilizationPct != null ? `${k.fleetUtilizationPct}%` : '—'}</div>
         </div>
+        {filterStatus !== 'All' && k.filteredVehicleCount != null && (
+          <div className="kpi-card">
+            <div className="kpi-label">Matching Filter</div>
+            <div className="kpi-value">{k.filteredVehicleCount}</div>
+          </div>
+        )}
       </div>
 
       {/* Main Grid: Recent Trips + Vehicle Status */}
@@ -115,26 +112,19 @@ const Dashboard = () => {
                   <th>Vehicle</th>
                   <th>Driver</th>
                   <th>Status</th>
-                  <th>ETA</th>
                 </tr>
               </thead>
               <tbody>
-                {recentTrips.map(trip => (
+                {recentTrips.map((trip) => (
                   <tr key={trip.id}>
-                    <td style={{ fontWeight: 600 }}>{trip.id.replace('trip-', 'TR').substring(0, 7).toUpperCase()}</td>
-                    <td>{trip.vehicleId}</td>
-                    <td>{trip.driverName || '—'}</td>
-                    <td><span className={statusColor(trip.status)}>{trip.status}</span></td>
-                    <td style={{ color: 'var(--slate-gray)', fontSize: '0.82rem' }}>
-                      {trip.status === 'Dispatched' ? '~45 min' :
-                       trip.status === 'Completed' ? '—' :
-                       trip.status === 'Draft' ? 'Awaiting vehicle' :
-                       trip.status === 'Cancelled' ? 'Vehicle went to shop' : '—'}
-                    </td>
+                    <td style={{ fontWeight: 600 }}>{trip.id.slice(-8).toUpperCase()}</td>
+                    <td>{vehicleById(trip.vehicleId)?.registrationNumber || '—'}</td>
+                    <td>{driverById(trip.driverId)?.name || '—'}</td>
+                    <td><span className={`status-badge status-badge-${slug(trip.status)}`}>{humanize(trip.status)}</span></td>
                   </tr>
                 ))}
                 {recentTrips.length === 0 && (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--slate-gray)', padding: '32px' }}>No trips recorded yet.</td></tr>
+                  <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--slate-gray)', padding: '32px' }}>No trips recorded yet.</td></tr>
                 )}
               </tbody>
             </table>
@@ -147,14 +137,14 @@ const Dashboard = () => {
           <div className="vehicle-status-bar">
             {Object.entries(statusCounts).map(([status, count]) => (
               <div className="status-bar-row" key={status}>
-                <span className="status-bar-label">{status}</span>
+                <span className="status-bar-label">{humanize(status)}</span>
                 <div className="status-bar-track">
                   <div
                     className="status-bar-fill"
                     style={{
                       width: `${(count / maxCount) * 100}%`,
                       background: barColors[status],
-                      minWidth: count > 0 ? '16px' : '0'
+                      minWidth: count > 0 ? '16px' : '0',
                     }}
                   />
                 </div>

@@ -1,120 +1,115 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
-} from 'recharts';
+import { formatMoney } from '../utils/enums';
+import * as reportsApi from '../api/reports';
 
 const Reports = () => {
-  const {
-    vehicles, trips, expenses, fuelLogs,
-    getVehicleOperationalCost, getVehicleRevenue,
-    getVehicleDistanceTraveled, getVehicleFuelConsumed
-  } = useApp();
+  const { vehicles, reportsOverview, refreshReports, showToast } = useApp();
+  const [vehicleFilter, setVehicleFilter] = useState('All');
+  const [exporting, setExporting] = useState(false);
 
-  // KPI calculations
-  const totalFuelConsumed = useMemo(() => fuelLogs.reduce((s, f) => s + f.liters, 0), [fuelLogs]);
-  const totalDistance = useMemo(() =>
-    trips.filter(t => t.status === 'Completed').reduce((s, t) => s + t.distance, 0), [trips]);
-  const fuelEfficiency = totalFuelConsumed > 0 ? (totalDistance / totalFuelConsumed).toFixed(1) : '0.0';
+  useEffect(() => {
+    refreshReports({ vehicleId: vehicleFilter !== 'All' ? vehicleFilter : undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleFilter]);
 
-  const activeVehicles = vehicles.filter(v => v.status !== 'Retired').length;
-  const availableVehicles = vehicles.filter(v => v.status === 'Available').length;
-  const fleetUtil = activeVehicles > 0 ? Math.round(((activeVehicles - availableVehicles) / activeVehicles) * 100) : 0;
+  const rows = reportsOverview?.vehicles || [];
+  const fleetUtilizationPct = reportsOverview?.fleetUtilizationPct ?? 0;
 
-  const totalOpCost = useMemo(() => expenses.reduce((s, e) => s + e.cost, 0), [expenses]);
+  const totals = useMemo(() => {
+    const totalRevenue = rows.reduce((s, v) => s + Number(v.totalRevenue || 0), 0);
+    const totalOpCost = rows.reduce((s, v) => s + Number(v.operationalCost || 0), 0);
+    const totalAcqCost = rows.reduce((s, v) => s + Number(v.acquisitionCost || 0), 0);
+    const totalFuelLiters = rows.reduce((s, v) => s + Number(v.totalFuelLiters || 0), 0);
+    const totalDistance = rows.reduce((s, v) => s + Number(v.totalDistanceKm || 0), 0);
+    const fuelEfficiency = totalFuelLiters > 0 ? (totalDistance / totalFuelLiters).toFixed(2) : '—';
+    const roiPct = totalAcqCost > 0 ? (((totalRevenue - totalOpCost) / totalAcqCost) * 100).toFixed(1) : '—';
+    return { totalRevenue, totalOpCost, totalAcqCost, fuelEfficiency, roiPct };
+  }, [rows]);
 
-  const totalRevenue = useMemo(() =>
-    trips.filter(t => t.status === 'Completed').reduce((s, t) => s + t.revenue, 0), [trips]);
-  const totalAcqCost = useMemo(() => vehicles.reduce((s, v) => s + v.acquisitionCost, 0), [vehicles]);
-  const vehicleROI = totalAcqCost > 0 ? (((totalRevenue - totalOpCost) / totalAcqCost) * 100).toFixed(1) : '0.0';
-
-  // Monthly revenue data (demo)
-  const monthlyRevenue = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-    return months.map((m, i) => ({
-      name: m,
-      revenue: Math.floor(Math.random() * 5000 + 2000 + (i * 800))
-    }));
-  }, []);
-
-  // Top costliest vehicles
   const vehicleCosts = useMemo(() => {
-    return vehicles
-      .map(v => ({
-        name: v.registrationNumber,
-        cost: getVehicleOperationalCost(v.registrationNumber)
-      }))
-      .sort((a, b) => b.cost - a.cost)
+    return [...rows]
+      .sort((a, b) => Number(b.operationalCost || 0) - Number(a.operationalCost || 0))
       .slice(0, 5);
-  }, [vehicles, expenses]);
+  }, [rows]);
 
-  const maxCost = Math.max(...vehicleCosts.map(v => v.cost), 1);
+  const maxCost = Math.max(...vehicleCosts.map((v) => Number(v.operationalCost || 0)), 1);
   const costColors = ['#F44336', '#FF9800', '#2196F3', '#4CAF50', '#9C27B0'];
 
   const handlePrint = () => window.print();
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const blob = await reportsApi.downloadReportsCsv({
+        vehicleId: vehicleFilter !== 'All' ? vehicleFilter : undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'transitops-report.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showToast(err.message || 'Failed to export CSV', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div>
       {/* ROI Formula */}
       <div style={{ fontSize: '0.78rem', color: 'var(--slate-gray)', marginBottom: 16 }}>
-        ROI = (Revenue − Maintenance + Fuel) / Acquisition Cost
+        ROI = (Revenue − (Maintenance + Fuel)) / Acquisition Cost
+      </div>
+
+      {/* Vehicle Filter */}
+      <div className="filter-bar">
+        <label>Scope:</label>
+        <select className="filter-select" value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)}>
+          <option value="All">Whole Fleet</option>
+          {vehicles.map((v) => <option key={v.id} value={v.id}>{v.registrationNumber}</option>)}
+        </select>
       </div>
 
       {/* KPI Cards */}
       <div className="analytics-kpi-grid">
         <div className="analytics-kpi">
           <div className="kpi-label">Fuel Efficiency</div>
-          <div className="kpi-value">{fuelEfficiency} km/l</div>
+          <div className="kpi-value">{totals.fuelEfficiency} km/l</div>
         </div>
         <div className="analytics-kpi">
           <div className="kpi-label">Fleet Utilization</div>
-          <div className="kpi-value">{fleetUtil}%</div>
+          <div className="kpi-value">{fleetUtilizationPct}%</div>
         </div>
         <div className="analytics-kpi">
           <div className="kpi-label">Operational Cost</div>
-          <div className="kpi-value">{totalOpCost.toLocaleString()}</div>
+          <div className="kpi-value">{formatMoney(totals.totalOpCost)}</div>
         </div>
         <div className="analytics-kpi">
-          <div className="kpi-label">Vehicle ROI</div>
-          <div className="kpi-value">{vehicleROI}%</div>
+          <div className="kpi-label">ROI</div>
+          <div className="kpi-value">{totals.roiPct}{totals.roiPct !== '—' ? '%' : ''}</div>
         </div>
       </div>
 
-      {/* Charts Row */}
+      {/* Top Costliest Vehicles */}
       <div className="analytics-charts-grid">
-        {/* Monthly Revenue Bar Chart */}
-        <div className="dash-section">
-          <h4>Monthly Revenue</h4>
-          <div style={{ height: 240 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyRevenue}>
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#696969' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#696969' }} />
-                <Tooltip />
-                <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                  {monthlyRevenue.map((_, i) => (
-                    <Cell key={i} fill="#2196F3" />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Top Costliest Vehicles */}
         <div className="dash-section">
           <h4>Top Costliest Vehicles</h4>
           <div className="vehicle-status-bar">
             {vehicleCosts.map((v, i) => (
-              <div className="status-bar-row" key={v.name}>
-                <span className="status-bar-label">{v.name}</span>
+              <div className="status-bar-row" key={v.vehicleId}>
+                <span className="status-bar-label">{v.registrationNumber}</span>
                 <div className="status-bar-track">
                   <div
                     className="status-bar-fill"
                     style={{
-                      width: `${(v.cost / maxCost) * 100}%`,
+                      width: `${(Number(v.operationalCost || 0) / maxCost) * 100}%`,
                       background: costColors[i % costColors.length],
-                      minWidth: v.cost > 0 ? '16px' : '0'
+                      minWidth: Number(v.operationalCost || 0) > 0 ? '16px' : '0',
                     }}
                   />
                 </div>
@@ -125,11 +120,48 @@ const Reports = () => {
             )}
           </div>
         </div>
+
+        {/* Per-vehicle Table */}
+        <div className="dash-section">
+          <h4>Per-Vehicle Breakdown</h4>
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Distance</th>
+                  <th>Fuel</th>
+                  <th>Op. Cost</th>
+                  <th>Revenue</th>
+                  <th>ROI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((v) => (
+                  <tr key={v.vehicleId}>
+                    <td style={{ fontWeight: 600 }}>{v.registrationNumber}</td>
+                    <td>{Number(v.totalDistanceKm || 0).toLocaleString()} km</td>
+                    <td>{v.fuelEfficiencyKmPerLtr != null ? `${v.fuelEfficiencyKmPerLtr} km/l` : '—'}</td>
+                    <td>{formatMoney(v.operationalCost)}</td>
+                    <td>{formatMoney(v.totalRevenue)}</td>
+                    <td>{v.roi != null ? `${(v.roi * 100).toFixed(1)}%` : '—'}</td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--slate-gray)', padding: 32 }}>No report data available.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Print / Export */}
       <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
         <button className="btn-action btn-action-dark" onClick={handlePrint}>Print / Export PDF</button>
+        <button className="btn-action btn-action-secondary" onClick={handleExportCsv} disabled={exporting}>
+          {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
       </div>
     </div>
   );

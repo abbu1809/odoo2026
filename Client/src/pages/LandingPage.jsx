@@ -1,10 +1,7 @@
 import React from 'react';
-import { useApp } from '../context/AppContext';
 import { ArrowRight, Truck, Shield, DollarSign, Activity, FileText } from 'lucide-react';
 
 const LandingPage = ({ setActiveTab, onLoginClick, isLoggedIn }) => {
-  const { activeUserRole } = useApp();
-
   return (
     <div style={{ position: 'relative', overflow: 'hidden', maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
       
