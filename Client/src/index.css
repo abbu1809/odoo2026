@@ -45,7 +45,7 @@
   --status-active-text: #FFFFFF;
 
   /* Font Stack */
-  --font-primary: 'Inter', 'Sofia Sans', system-ui, -apple-system, sans-serif;
+  --font-primary: 'Sofia Sans', 'Inter', system-ui, -apple-system, sans-serif;;
 
   /* Radius Scale */
   --radius-xs: 4px;
@@ -1387,26 +1387,28 @@ body {
 
 .ghost-watermark {
   position: absolute;
-  font-weight: 800;
-  color: rgba(20, 20, 19, 0.04);
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.045);
   pointer-events: none;
   user-select: none;
   z-index: 0;
-  font-family: 'Sofia Sans', sans-serif;
+  font-family: var(--font-primary);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
 }
 
 .card-elevated {
   background: var(--white);
   border-radius: 32px;
-  padding: 40px 32px;
-  border: 1px solid var(--border-light);
-  box-shadow: 0 10px 45px rgba(20, 20, 19, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 20px 32px;
+  border: none;
+  box-shadow: 0 15px 40px rgba(20, 20, 19, 0.04), 0 2px 8px rgba(20, 20, 19, 0.02);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card-elevated:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 50px rgba(20, 20, 19, 0.06);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px rgba(20, 20, 19, 0.08);
 }
 
 .orbit-container {
@@ -1472,7 +1474,7 @@ body {
 .btn-secondary {
   background-color: var(--white);
   color: var(--ink-black);
-  border: 1.5px solid var(--border-light);
+  border: 1.5px solid var(--ink-black);
   border-radius: var(--radius-btn);
   padding: 8px 20px;
   font-size: 0.9rem;
@@ -1495,5 +1497,145 @@ body {
 
 .btn-secondary:active {
   transform: translateY(1px);
+}
+
+/* ============================================
+   GRID-4 LAYOUT FOR BENEFITS CARDS
+   ============================================ */
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 32px;
+}
+
+@media (max-width: 1024px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN FOR LANDING PAGE
+   ============================================ */
+
+.orbit-wrapper {
+  position: relative;
+  height: 650px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.orbit-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orbit-node {
+  position: absolute;
+  z-index: 2;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.orbit-node-left {
+  top: 150px;
+  left: 40px;
+}
+
+.orbit-node-top {
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.orbit-node-right {
+  top: 150px;
+  right: 40px;
+}
+
+.orbit-node-bottom {
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hero-stadium {
+  height: 420px;
+  border-radius: 32px;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+  padding: 48px;
+  color: var(--white);
+}
+
+.metrics-banner {
+  padding: 64px;
+  background-color: var(--lifted-cream);
+  border-radius: 32px;
+  border: 1px solid rgba(0,0,0,0.05);
+  margin-bottom: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 40px;
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2.3rem !important;
+    line-height: 1.15 !important;
+  }
+  
+  .orbit-wrapper {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    padding: 20px 0;
+  }
+
+  .orbit-svg {
+    display: none;
+  }
+
+  .orbit-node {
+    position: static;
+    transform: none !important;
+    margin: 0 auto;
+  }
+  
+  .orbit-container {
+    width: 190px !important;
+    height: 190px !important;
+  }
+
+  .hero-stadium {
+    padding: 24px !important;
+    height: 320px !important;
+  }
+
+  .metrics-banner {
+    padding: 32px 24px !important;
+    flex-direction: column;
+    text-align: center;
+    gap: 32px !important;
+  }
 }
 
