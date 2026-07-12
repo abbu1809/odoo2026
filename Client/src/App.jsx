@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar, Topbar } from './components/Navbar';
 import Footer from './components/Footer';
-import InteractiveDemo from './components/InteractiveDemo';
 
 // Import Views
 import LandingPage from './pages/LandingPage';
@@ -29,60 +28,27 @@ const pageTitles = {
 };
 
 function AppContent() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [userName, setUserName] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { notifications, activeUserRole, setActiveUserRole, hasAccess } = useApp();
+  const { isAuthenticated, initializing, notifications } = useApp();
 
-  // Redirect on role change if current tab becomes unauthorized
-  React.useEffect(() => {
-    if (isLoggedIn && !hasAccess(activeTab)) {
-      const tabs = ['dashboard', 'vehicles', 'drivers', 'trips', 'maintenance', 'expenses', 'reports', 'settings'];
-      const fallbackTab = tabs.find(t => hasAccess(t));
-      if (fallbackTab) {
-        setActiveTab(fallbackTab);
-      }
-    }
-  }, [activeUserRole, isLoggedIn, activeTab, hasAccess]);
+  if (initializing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--slate-gray)' }}>
+        Loading TransitOps…
+      </div>
+    );
+  }
 
-  const handleLogin = (role, name) => {
-    setActiveUserRole(role);
-    setUserName(name || 'Ravee K.');
-    setIsLoggedIn(true);
-    
-    // Set active tab to the first authorized tab for the logged in role
-    const tabs = ['dashboard', 'vehicles', 'drivers', 'trips', 'maintenance', 'expenses', 'reports', 'settings'];
-    const initialTab = tabs.find(t => {
-      // Inline implementation of hasAccess for the target role
-      const matrix = {
-        'Fleet Manager': ['vehicles', 'drivers', 'maintenance', 'reports', 'settings'],
-        'Driver': ['dashboard', 'vehicles', 'trips', 'settings'],
-        'Safety Officer': ['drivers', 'trips', 'settings'],
-        'Financial Analyst': ['vehicles', 'expenses', 'reports', 'settings']
-      };
-      return matrix[role]?.includes(t);
-    }) || 'dashboard';
-    
-    setActiveTab(initialTab);
-    setShowLogin(false);
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserName('');
-    setShowLogin(false);
-  };
-
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     if (showLogin) {
-      return <LoginPage onLogin={handleLogin} onBack={() => setShowLogin(false)} />;
+      return <LoginPage onBack={() => setShowLogin(false)} />;
     }
     return (
-      <LandingPage 
-        setActiveTab={setActiveTab} 
-        onLoginClick={() => setShowLogin(true)} 
-        isLoggedIn={false} 
+      <LandingPage
+        setActiveTab={setActiveTab}
+        onLoginClick={() => setShowLogin(true)}
+        isLoggedIn={false}
       />
     );
   }
@@ -109,7 +75,7 @@ function AppContent() {
       {/* Column Content Wrapper */}
       <div className="main-wrapper">
         {/* Top Bar */}
-        <Topbar userName={userName} />
+        <Topbar />
 
         {/* Main Content */}
         <main className="main-area">
@@ -122,9 +88,6 @@ function AppContent() {
         {/* Footer */}
         <Footer />
       </div>
-
-      {/* Interactive Demo (Hackathon Guide) */}
-      <InteractiveDemo activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Toast Notifications */}
       <div className="toast-container no-print">

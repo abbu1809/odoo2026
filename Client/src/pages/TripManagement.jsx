@@ -1,76 +1,88 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-
-const statusClass = (s) => {
-  const m = { 'Draft': 'draft', 'Dispatched': 'dispatched', 'Completed': 'completed', 'Cancelled': 'cancelled' };
-  return `status-badge status-badge-${m[s] || 'draft'}`;
-};
+import { humanize, slug } from '../utils/enums';
 
 const TripManagement = () => {
   const {
     vehicles, drivers, trips,
     createTrip, dispatchTrip, completeTrip, cancelTrip,
-    checkIsLicenseExpired, activeUserRole, getPermission
+    checkIsLicenseExpired, canWrite,
   } = useApp();
 
   const [form, setForm] = useState({
-    source: '', destination: '', vehicleId: '', driverName: '',
-    cargoWeight: '', distance: '', revenue: '', date: '2026-07-12'
+    source: '', destination: '', vehicleId: '', driverId: '',
+    cargoWeightKg: '', plannedDistanceKm: '',
   });
 
   const [completeForm, setCompleteForm] = useState({
-    tripId: '', finalOdometer: '', fuelConsumed: '', fuelCost: '', revenueValue: ''
+    tripId: '', finalOdometerKm: '', fuelConsumedLtr: '', revenue: '',
   });
   const [showComplete, setShowComplete] = useState(false);
+  const [busyTripId, setBusyTripId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const vehicleById = (id) => vehicles.find((v) => v.id === id);
+  const driverById = (id) => drivers.find((d) => d.id === id);
 
   // Available vehicles/drivers for dispatch
-  const availableVehicles = vehicles.filter(v => v.status === 'Available');
-  const availableDrivers = drivers.filter(d =>
-    d.status === 'Available' && !checkIsLicenseExpired(d.licenseExpiryDate)
+  const availableVehicles = vehicles.filter((v) => v.status === 'AVAILABLE');
+  const availableDrivers = drivers.filter((d) =>
+    d.status === 'AVAILABLE' && !checkIsLicenseExpired(d.licenseExpiryDate)
   );
 
-  const selectedVehicle = vehicles.find(v => v.registrationNumber === form.vehicleId);
+  const selectedVehicle = vehicleById(form.vehicleId);
 
   // Capacity validation
-  const cargoNum = Number(form.cargoWeight) || 0;
-  const capacityExceeded = selectedVehicle && cargoNum > selectedVehicle.maxCapacity;
+  const cargoNum = Number(form.cargoWeightKg) || 0;
+  const capacityExceeded = selectedVehicle && cargoNum > Number(selectedVehicle.maxLoadCapacityKg);
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    const ok = createTrip(form);
+    setSubmitting(true);
+    const ok = await createTrip(form);
+    setSubmitting(false);
     if (ok) {
-      setForm({ source: '', destination: '', vehicleId: '', driverName: '', cargoWeight: '', distance: '', revenue: '', date: '2026-07-12' });
+      setForm({ source: '', destination: '', vehicleId: '', driverId: '', cargoWeightKg: '', plannedDistanceKm: '' });
     }
   };
 
-  const handleDispatch = (tripId) => {
-    dispatchTrip(tripId);
+  const handleDispatch = async (tripId) => {
+    setBusyTripId(tripId);
+    await dispatchTrip(tripId);
+    setBusyTripId(null);
+  };
+
+  const handleCancel = async (tripId) => {
+    setBusyTripId(tripId);
+    await cancelTrip(tripId);
+    setBusyTripId(null);
   };
 
   const openComplete = (trip) => {
     setCompleteForm({
       tripId: trip.id,
-      finalOdometer: '',
-      fuelConsumed: '',
-      fuelCost: '',
-      revenueValue: trip.revenue || ''
+      finalOdometerKm: '',
+      fuelConsumedLtr: '',
+      revenue: trip.revenue || '',
     });
     setShowComplete(true);
   };
 
-  const handleComplete = (e) => {
+  const handleComplete = async (e) => {
     e.preventDefault();
-    completeTrip(completeForm.tripId, completeForm);
-    setShowComplete(false);
+    setSubmitting(true);
+    const ok = await completeTrip(completeForm.tripId, completeForm);
+    setSubmitting(false);
+    if (ok) setShowComplete(false);
   };
 
   // Trip lifecycle stages
-  const stages = ['Draft', 'Dispatched', 'Completed'];
+  const stages = ['DRAFT', 'DISPATCHED', 'COMPLETED'];
 
   // Live board — all trips sorted by newest
-  const sortedTrips = [...trips].sort((a, b) => b.id.localeCompare(a.id));
+  const sortedTrips = [...trips].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  const canCreate = getPermission('trips') === 'Full';
+  const canCreate = canWrite('trips');
 
   return (
     <div>
@@ -82,7 +94,7 @@ const TripManagement = () => {
               <div className={`lifecycle-dot${i < 2 ? ' completed' : ''}`}>
                 {i < 2 && <span style={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>✓</span>}
               </div>
-              {stage}
+              {humanize(stage)}
             </div>
             {i < stages.length - 1 && <div className={`lifecycle-line${i < 1 ? ' completed' : ''}`} />}
           </React.Fragment>
@@ -97,48 +109,48 @@ const TripManagement = () => {
             <form onSubmit={handleCreate}>
               <div className="form-group">
                 <label>Source</label>
-                <input className="form-input" required value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} placeholder="Gandhinagar Depot" />
+                <input className="form-input" required value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Gandhinagar Depot" />
               </div>
               <div className="form-group">
                 <label>Destination</label>
-                <input className="form-input" required value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })} placeholder="Ahmedabad Hub" />
+                <input className="form-input" required value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Ahmedabad Hub" />
               </div>
               <div className="form-group">
                 <label>Vehicle (Available Only)</label>
-                <select className="form-select" required value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}>
+                <select className="form-select" required value={form.vehicleId} onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}>
                   <option value="">Select vehicle...</option>
-                  {availableVehicles.map(v => (
-                    <option key={v.registrationNumber} value={v.registrationNumber}>
-                      {v.registrationNumber} – {v.maxCapacity} kg capacity
+                  {availableVehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.registrationNumber} – {Number(v.maxLoadCapacityKg).toLocaleString()} kg capacity
                     </option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
                 <label>Driver (Available Only)</label>
-                <select className="form-select" required value={form.driverName} onChange={e => setForm({ ...form, driverName: e.target.value })}>
+                <select className="form-select" required value={form.driverId} onChange={(e) => setForm({ ...form, driverId: e.target.value })}>
                   <option value="">Select driver...</option>
-                  {availableDrivers.map(d => (
-                    <option key={d.name} value={d.name}>{d.name}</option>
+                  {availableDrivers.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
                 <label>Cargo Weight (kg)</label>
-                <input className="form-input" type="number" required value={form.cargoWeight} onChange={e => setForm({ ...form, cargoWeight: e.target.value })} placeholder="900" />
+                <input className="form-input" type="number" required value={form.cargoWeightKg} onChange={(e) => setForm({ ...form, cargoWeightKg: e.target.value })} placeholder="900" />
               </div>
               <div className="form-group">
                 <label>Planned Distance (km)</label>
-                <input className="form-input" type="number" value={form.distance} onChange={e => setForm({ ...form, distance: e.target.value })} placeholder="50" />
+                <input className="form-input" type="number" value={form.plannedDistanceKm} onChange={(e) => setForm({ ...form, plannedDistanceKm: e.target.value })} placeholder="50" />
               </div>
 
               {/* Capacity Validation */}
-              {selectedVehicle && form.cargoWeight && (
+              {selectedVehicle && form.cargoWeightKg && (
                 <div className={`validation-box ${capacityExceeded ? 'error' : 'success'}`}>
-                  <span>Vehicle Capacity: <strong>{selectedVehicle.maxCapacity} kg</strong></span>
-                  <span>Cargo Weight: <strong>{form.cargoWeight} kg</strong></span>
+                  <span>Vehicle Capacity: <strong>{Number(selectedVehicle.maxLoadCapacityKg).toLocaleString()} kg</strong></span>
+                  <span>Cargo Weight: <strong>{form.cargoWeightKg} kg</strong></span>
                   {capacityExceeded && (
-                    <span style={{ fontWeight: 700 }}>✕ Capacity exceeded by {cargoNum - selectedVehicle.maxCapacity} kg — dispatch blocked</span>
+                    <span style={{ fontWeight: 700 }}>✕ Capacity exceeded by {cargoNum - Number(selectedVehicle.maxLoadCapacityKg)} kg — dispatch blocked</span>
                   )}
                   {!capacityExceeded && (
                     <span style={{ fontWeight: 700 }}>✓ Within capacity</span>
@@ -147,11 +159,11 @@ const TripManagement = () => {
               )}
 
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <button type="submit" className="btn-action btn-action-dark" disabled={capacityExceeded} style={{ flex: 1, opacity: capacityExceeded ? 0.5 : 1 }}>
-                  Dispatch (Create Draft)
+                <button type="submit" className="btn-action btn-action-dark" disabled={capacityExceeded || submitting} style={{ flex: 1, opacity: capacityExceeded ? 0.5 : 1 }}>
+                  {submitting ? 'Creating…' : 'Create Draft'}
                 </button>
-                <button type="button" className="btn-action btn-action-cancel" onClick={() => setForm({ source: '', destination: '', vehicleId: '', driverName: '', cargoWeight: '', distance: '', revenue: '', date: '2026-07-12' })}>
-                  Cancel
+                <button type="button" className="btn-action btn-action-cancel" onClick={() => setForm({ source: '', destination: '', vehicleId: '', driverId: '', cargoWeightKg: '', plannedDistanceKm: '' })}>
+                  Reset
                 </button>
               </div>
             </form>
@@ -162,51 +174,50 @@ const TripManagement = () => {
         <div>
           <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 14, color: 'var(--charcoal)' }}>Live Board</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {sortedTrips.map(trip => (
-              <div key={trip.id} style={{
-                background: 'var(--white)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 'var(--radius-card)',
-                padding: '16px 20px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>
-                      {trip.id.replace('trip-', 'TR').substring(0, 7).toUpperCase()}
+            {sortedTrips.map((trip) => {
+              const vehicle = vehicleById(trip.vehicleId);
+              const driver = driverById(trip.driverId);
+              const busy = busyTripId === trip.id;
+              return (
+                <div key={trip.id} style={{
+                  background: 'var(--white)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 'var(--radius-card)',
+                  padding: '16px 20px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>
+                        {trip.id.slice(-8).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)' }}>
+                        {trip.source} → {trip.destination}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)' }}>
-                      {trip.source} → {trip.destination}
+                    <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--slate-gray)' }}>
+                      {vehicle?.registrationNumber || '—'} / {driver?.name || 'Unassigned'}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--slate-gray)' }}>
-                    {trip.vehicleId} / {trip.driverName || 'Unassigned'}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className={`status-badge status-badge-${slug(trip.status)}`}>{humanize(trip.status)}</span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {canCreate && trip.status === 'DRAFT' && (
+                        <>
+                          <button className="btn-action btn-action-success" style={{ padding: '4px 14px', fontSize: '0.78rem' }} disabled={busy} onClick={() => handleDispatch(trip.id)}>Dispatch</button>
+                          <button className="btn-action btn-action-cancel" style={{ padding: '4px 14px', fontSize: '0.78rem' }} disabled={busy} onClick={() => handleCancel(trip.id)}>Cancel</button>
+                        </>
+                      )}
+                      {canCreate && trip.status === 'DISPATCHED' && (
+                        <>
+                          <button className="btn-action btn-action-success" style={{ padding: '4px 14px', fontSize: '0.78rem' }} disabled={busy} onClick={() => openComplete(trip)}>Complete</button>
+                          <button className="btn-action btn-action-cancel" style={{ padding: '4px 14px', fontSize: '0.78rem' }} disabled={busy} onClick={() => handleCancel(trip.id)}>Cancel</button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className={statusClass(trip.status)}>{trip.status}</span>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {canCreate && trip.status === 'Draft' && (
-                      <>
-                        <button className="btn-action btn-action-success" style={{ padding: '4px 14px', fontSize: '0.78rem' }} onClick={() => handleDispatch(trip.id)}>Dispatch</button>
-                        <button className="btn-action btn-action-cancel" style={{ padding: '4px 14px', fontSize: '0.78rem' }} onClick={() => cancelTrip(trip.id)}>Cancel</button>
-                      </>
-                    )}
-                    {canCreate && trip.status === 'Dispatched' && (
-                      <>
-                        <button className="btn-action btn-action-success" style={{ padding: '4px 14px', fontSize: '0.78rem' }} onClick={() => openComplete(trip)}>Complete</button>
-                        <button className="btn-action btn-action-cancel" style={{ padding: '4px 14px', fontSize: '0.78rem' }} onClick={() => cancelTrip(trip.id)}>Cancel</button>
-                      </>
-                    )}
-                    {trip.status === 'Dispatched' && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--slate-gray)', alignSelf: 'center' }}>~45 min</span>
-                    )}
-                    {trip.status === 'Draft' && !trip.vehicleId && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--slate-gray)', alignSelf: 'center' }}>Awaiting vehicle</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {sortedTrips.length === 0 && (
               <div style={{ color: 'var(--slate-gray)', textAlign: 'center', padding: 32 }}>No trips created yet.</div>
             )}
@@ -221,29 +232,27 @@ const TripManagement = () => {
       {/* Complete Trip Modal */}
       {showComplete && (
         <div className="modal-overlay" onClick={() => setShowComplete(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h3>Complete Trip {completeForm.tripId}</h3>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Complete Trip</h3>
             <form onSubmit={handleComplete}>
               <div className="form-group">
                 <label>Final Odometer (km)</label>
-                <input className="form-input" type="number" required value={completeForm.finalOdometer} onChange={e => setCompleteForm({ ...completeForm, finalOdometer: e.target.value })} />
+                <input className="form-input" type="number" required value={completeForm.finalOdometerKm} onChange={(e) => setCompleteForm({ ...completeForm, finalOdometerKm: e.target.value })} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div className="form-group">
                   <label>Fuel Consumed (L)</label>
-                  <input className="form-input" type="number" value={completeForm.fuelConsumed} onChange={e => setCompleteForm({ ...completeForm, fuelConsumed: e.target.value })} />
+                  <input className="form-input" type="number" value={completeForm.fuelConsumedLtr} onChange={(e) => setCompleteForm({ ...completeForm, fuelConsumedLtr: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label>Fuel Cost ($)</label>
-                  <input className="form-input" type="number" value={completeForm.fuelCost} onChange={e => setCompleteForm({ ...completeForm, fuelCost: e.target.value })} />
+                  <label>Revenue ($)</label>
+                  <input className="form-input" type="number" value={completeForm.revenue} onChange={(e) => setCompleteForm({ ...completeForm, revenue: e.target.value })} />
                 </div>
               </div>
-              <div className="form-group">
-                <label>Revenue ($)</label>
-                <input className="form-input" type="number" value={completeForm.revenueValue} onChange={e => setCompleteForm({ ...completeForm, revenueValue: e.target.value })} />
-              </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <button type="submit" className="btn-action btn-action-success" style={{ flex: 1 }}>Mark Complete</button>
+                <button type="submit" className="btn-action btn-action-success" style={{ flex: 1 }} disabled={submitting}>
+                  {submitting ? 'Saving…' : 'Mark Complete'}
+                </button>
                 <button type="button" className="btn-action btn-action-secondary" onClick={() => setShowComplete(false)}>Cancel</button>
               </div>
             </form>
