@@ -20,7 +20,11 @@ const navItems = [
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const { canRead } = useApp();
-  const visibleItems = navItems.filter((item) => !item.resource || canRead(item.resource));
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.key === 'dashboard' || item.key === 'settings') return true;
+    return canRead(item.resource);
+  });
 
   return (
     <aside className="sidebar no-print">
@@ -30,7 +34,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       </div>
 
       <nav className="sidebar-nav">
-        {visibleItems.map((item) => {
+        {filteredNavItems.map((item) => {
           const Icon = item.icon;
           return (
             <button

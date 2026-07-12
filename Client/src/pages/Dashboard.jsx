@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { VEHICLE_TYPES, VEHICLE_STATUSES, humanize, slug } from '../utils/enums';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const Dashboard = () => {
   const { vehicles, drivers, trips, dashboardKpis, refreshDashboard } = useApp();
@@ -31,13 +32,23 @@ const Dashboard = () => {
     .slice(0, 5);
 
   // Vehicle status distribution (client-side, from the full vehicle list)
-  const statusCounts = {
+  const statusCounts = useMemo(() => ({
     AVAILABLE: vehicles.filter((v) => v.status === 'AVAILABLE').length,
     ON_TRIP: vehicles.filter((v) => v.status === 'ON_TRIP').length,
     IN_SHOP: vehicles.filter((v) => v.status === 'IN_SHOP').length,
     RETIRED: vehicles.filter((v) => v.status === 'RETIRED').length,
-  };
-  const maxCount = Math.max(...Object.values(statusCounts), 1);
+  }), [vehicles]);
+
+  const statusChartData = useMemo(() => {
+    return Object.entries(statusCounts)
+      .map(([status, value]) => ({
+        name: humanize(status),
+        value,
+        key: status
+      }))
+      .filter(d => d.value > 0);
+  }, [statusCounts]);
+
   const barColors = { AVAILABLE: '#4CAF50', ON_TRIP: '#2196F3', IN_SHOP: '#FF9800', RETIRED: '#F44336' };
 
   const k = dashboardKpis || {};
@@ -132,24 +143,50 @@ const Dashboard = () => {
         </div>
 
         {/* Vehicle Status Chart */}
-        <div className="dash-section">
-          <h4>Vehicle Status</h4>
-          <div className="vehicle-status-bar">
-            {Object.entries(statusCounts).map(([status, count]) => (
-              <div className="status-bar-row" key={status}>
-                <span className="status-bar-label">{humanize(status)}</span>
-                <div className="status-bar-track">
-                  <div
-                    className="status-bar-fill"
-                    style={{
-                      width: `${(count / maxCount) * 100}%`,
-                      background: barColors[status],
-                      minWidth: count > 0 ? '16px' : '0',
+        <div className="dash-section" style={{ display: 'flex', flexDirection: 'column' }}>
+          <h4>Vehicle Status Distribution</h4>
+          <div style={{ width: '100%', height: '240px', flex: 1, minHeight: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
+            {statusChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {statusChartData.map((entry) => (
+                      <Cell key={`cell-${entry.key}`} fill={barColors[entry.key]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--white)', 
+                      border: '1px solid var(--border-light)', 
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontFamily: 'var(--font-primary)'
+                    }} 
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36} 
+                    iconType="circle"
+                    iconSize={10}
+                    wrapperStyle={{
+                      fontSize: '0.8rem',
+                      fontFamily: 'var(--font-primary)',
+                      marginTop: '10px'
                     }}
                   />
-                </div>
-              </div>
-            ))}
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ color: 'var(--slate-gray)', fontSize: '0.9rem' }}>No vehicles registered yet.</div>
+            )}
           </div>
         </div>
       </div>
