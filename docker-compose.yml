@@ -28,8 +28,17 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       SEED_ON_START: ${SEED_ON_START:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-TransitOps <no-reply@transitops.io>}
+      UPLOADS_DIR: uploads
     ports:
       - "${SERVER_PORT:-4000}:4000"
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -47,3 +56,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

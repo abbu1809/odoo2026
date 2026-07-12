@@ -16,6 +16,7 @@ import fuelRoutes from "./modules/fuel/fuel.routes";
 import expenseRoutes from "./modules/expenses/expense.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes";
 import reportRoutes from "./modules/reports/report.routes";
+import vehicleDocumentRoutes from "./modules/vehicleDocuments/vehicleDocument.routes";
 
 export const app = express();
 
@@ -41,6 +42,7 @@ app.use(`${API_PREFIX}/fuel-logs`, fuelRoutes);
 app.use(`${API_PREFIX}/expenses`, expenseRoutes);
 app.use(`${API_PREFIX}/dashboard`, dashboardRoutes);
 app.use(`${API_PREFIX}/reports`, reportRoutes);
+app.use(API_PREFIX, vehicleDocumentRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
