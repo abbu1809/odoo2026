@@ -15,14 +15,28 @@ const AppContext = createContext();
 
 const TOKEN_KEY = 'transitops_token';
 
-// Roles permitted to perform *write* operations on each resource (spec API.md).
+// Roles permitted to perform *write* operations on each resource, matching
+// the RBAC matrix in Settings & the server's per-route requireRole() calls.
 const WRITE_ROLES = {
   vehicles: ['ADMIN', 'FLEET_MANAGER'],
   drivers: ['ADMIN', 'FLEET_MANAGER', 'SAFETY_OFFICER'],
-  trips: ['ADMIN', 'FLEET_MANAGER', 'DRIVER'],
+  trips: ['ADMIN', 'DRIVER'],
   maintenance: ['ADMIN', 'FLEET_MANAGER'],
-  fuelLogs: ['ADMIN', 'FLEET_MANAGER', 'DRIVER'],
-  expenses: ['ADMIN', 'FLEET_MANAGER', 'DRIVER'],
+  fuelLogs: ['ADMIN', 'FINANCIAL_ANALYST'],
+  expenses: ['ADMIN', 'FINANCIAL_ANALYST'],
+  users: ['ADMIN'],
+};
+
+// Roles permitted to *read* each resource at all — a role missing from this
+// list gets a 403 from the server, not just a hidden write button.
+const READ_ROLES = {
+  vehicles: ['ADMIN', 'FLEET_MANAGER', 'DRIVER', 'FINANCIAL_ANALYST'],
+  drivers: ['ADMIN', 'FLEET_MANAGER', 'SAFETY_OFFICER'],
+  trips: ['ADMIN', 'DRIVER', 'SAFETY_OFFICER'],
+  maintenance: ['ADMIN', 'FLEET_MANAGER', 'DRIVER', 'FINANCIAL_ANALYST'],
+  fuelLogs: ['ADMIN', 'FINANCIAL_ANALYST'],
+  expenses: ['ADMIN', 'FINANCIAL_ANALYST'],
+  reports: ['ADMIN', 'FLEET_MANAGER', 'FINANCIAL_ANALYST'],
   users: ['ADMIN'],
 };
 
@@ -134,6 +148,11 @@ export const AppProvider = ({ children }) => {
   // ----------------------------------------------------
   const canWrite = useCallback(
     (resource) => !!user && !!WRITE_ROLES[resource]?.includes(user.role),
+    [user]
+  );
+
+  const canRead = useCallback(
+    (resource) => !!user && !!READ_ROLES[resource]?.includes(user.role),
     [user]
   );
 
@@ -265,15 +284,17 @@ export const AppProvider = ({ children }) => {
     }
   }, [showToast, isAdmin]);
 
-  // Load everything once we have an authenticated user.
+  // Load everything the current role can actually read once authenticated —
+  // a role with no read access to a resource would otherwise fire a doomed
+  // request the server just 403s.
   useEffect(() => {
     if (!user) return;
-    refreshVehicles();
-    refreshDrivers();
-    refreshTrips();
-    refreshMaintenance();
-    refreshFuelLogs();
-    refreshExpenses();
+    if (canRead('vehicles')) refreshVehicles();
+    if (canRead('drivers')) refreshDrivers();
+    if (canRead('trips')) refreshTrips();
+    if (canRead('maintenance')) refreshMaintenance();
+    if (canRead('fuelLogs')) refreshFuelLogs();
+    if (canRead('expenses')) refreshExpenses();
     refreshDashboard();
     if (user.role === 'ADMIN') refreshUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -558,6 +579,7 @@ export const AppProvider = ({ children }) => {
         logout,
         isAdmin,
         canWrite,
+        canRead,
         canDelete,
 
         // data

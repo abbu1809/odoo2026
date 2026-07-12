@@ -4,9 +4,9 @@ import { ROLES, humanize } from '../utils/enums';
 
 const rbacMatrix = [
   { role: 'ADMIN', fleet: '✓', drivers: '✓', trips: '✓', fuelExp: '✓', analytics: '✓' },
-  { role: 'FLEET_MANAGER', fleet: '✓', drivers: '✓', trips: '✓', fuelExp: '—', analytics: '✓' },
-  { role: 'DRIVER', fleet: 'View', drivers: '—', trips: '✓', fuelExp: '✓', analytics: '—' },
-  { role: 'SAFETY_OFFICER', fleet: 'View', drivers: '✓', trips: 'View', fuelExp: '—', analytics: '—' },
+  { role: 'FLEET_MANAGER', fleet: '✓', drivers: '✓', trips: '—', fuelExp: '—', analytics: '✓' },
+  { role: 'DRIVER', fleet: 'View', drivers: '—', trips: '✓', fuelExp: '—', analytics: '—' },
+  { role: 'SAFETY_OFFICER', fleet: '—', drivers: '✓', trips: 'View', fuelExp: '—', analytics: '—' },
   { role: 'FINANCIAL_ANALYST', fleet: 'View', drivers: '—', trips: '—', fuelExp: '✓', analytics: '✓' },
 ];
 
