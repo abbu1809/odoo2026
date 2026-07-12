@@ -37,7 +37,7 @@ const LandingFooter = () => {
           {/* Brand */}
           <div style={{ maxWidth: '360px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <img src="/logo.svg" alt="logo" style={{ width: '24px', height: '24px' }} />
+              <img src="/logo.svg" alt="logo" style={{ width: '44px', height: '44px', filter: 'invert(1)' }} />
               <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--white)' }}>
                 Transit<span style={{ color: 'var(--signal-orange)' }}>Ops</span>
               </h2>
