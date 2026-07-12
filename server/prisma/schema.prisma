@@ -1,0 +1,263 @@
+// TransitOps - Smart Transport Operations Platform
+// Prisma schema (PostgreSQL)
+// See ../schema.md for the human-readable data dictionary.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// System role used for authentication + RBAC (section 3.1 / 2)
+enum UserRole {
+  ADMIN
+  FLEET_MANAGER
+  DRIVER
+  SAFETY_OFFICER
+  FINANCIAL_ANALYST
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+  BUS
+  CAR
+  MOTORCYCLE
+  TRAILER
+  OTHER
+}
+
+/// Section 3.3 - Vehicle Registry status values
+enum VehicleStatus {
+  AVAILABLE
+  ON_TRIP
+  IN_SHOP
+  RETIRED
+}
+
+/// Section 3.4 - Driver Management status values
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  OFF_DUTY
+  SUSPENDED
+}
+
+/// Section 3.5 - Trip lifecycle: Draft -> Dispatched -> Completed / Cancelled
+enum TripStatus {
+  DRAFT
+  DISPATCHED
+  COMPLETED
+  CANCELLED
+}
+
+/// Section 3.6 - Maintenance. OPEN keeps the vehicle IN_SHOP, CLOSED releases it.
+enum MaintenanceStatus {
+  OPEN
+  CLOSED
+}
+
+/// Section 3.7 - non fuel/maintenance operational expenses (tolls, fines, permits...)
+enum ExpenseCategory {
+  TOLL
+  PARKING
+  FINE
+  PERMIT
+  INSURANCE
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/// Login account. Role drives RBAC (section 3.1).
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Reverse relations (audit trail of who created/logged what)
+  driverProfile   Driver?
+  createdTrips    Trip[]           @relation("TripCreatedBy")
+  maintenanceLogs MaintenanceLog[] @relation("MaintenanceCreatedBy")
+  fuelLogs        FuelLog[]        @relation("FuelLoggedBy")
+  expenses        Expense[]        @relation("ExpenseLoggedBy")
+
+  @@map("users")
+}
+
+/// Section 3.3 - master list of vehicles.
+model Vehicle {
+  id                 String        @id @default(cuid())
+  registrationNumber String        @unique
+  name               String
+  type               VehicleType
+  maxLoadCapacityKg  Float
+  odometerKm         Float         @default(0)
+  acquisitionCost    Decimal       @db.Decimal(12, 2)
+  status             VehicleStatus @default(AVAILABLE)
+  region             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trips           Trip[]
+  maintenanceLogs MaintenanceLog[]
+  fuelLogs        FuelLog[]
+  expenses        Expense[]
+
+  @@index([status])
+  @@index([type])
+  @@index([region])
+  @@map("vehicles")
+}
+
+/// Section 3.4 - driver profiles (the person operating a vehicle).
+/// Optionally linked to a login User (role = DRIVER) via userId.
+model Driver {
+  id                String       @id @default(cuid())
+  name              String
+  licenseNumber     String       @unique
+  licenseCategory   String
+  licenseExpiryDate DateTime
+  contactNumber     String
+  safetyScore       Float        @default(100)
+  status            DriverStatus @default(AVAILABLE)
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trips Trip[]
+
+  @@index([status])
+  @@map("drivers")
+}
+
+/// Section 3.5 - trip lifecycle Draft -> Dispatched -> Completed/Cancelled.
+model Trip {
+  id          String     @id @default(cuid())
+  source      String
+  destination String
+  status      TripStatus @default(DRAFT)
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Restrict)
+
+  cargoWeightKg     Float
+  plannedDistanceKm Float
+
+  // Snapshot of the vehicle's odometer at dispatch time, used to derive
+  // actualDistanceKm on completion.
+  startOdometerKm Float?
+
+  // Filled when the trip is completed
+  finalOdometerKm  Float?
+  fuelConsumedLtr  Float?
+  actualDistanceKm Float?
+  revenue          Decimal? @db.Decimal(12, 2)
+
+  dispatchedAt DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+
+  createdById String
+  createdBy   User   @relation("TripCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  fuelLogs FuelLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@map("trips")
+}
+
+/// Section 3.6 - creating an OPEN record puts the vehicle IN_SHOP; closing it
+/// restores AVAILABLE (unless the vehicle is RETIRED).
+model MaintenanceLog {
+  id          String            @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type        String
+  description String?
+  cost        Decimal           @default(0) @db.Decimal(12, 2)
+  status      MaintenanceStatus @default(OPEN)
+
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
+  createdById String
+  createdBy   User   @relation("MaintenanceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vehicleId])
+  @@index([status])
+  @@map("maintenance_logs")
+}
+
+/// Section 3.7 - fuel logs (liters, cost, date), optionally tied to a trip.
+model FuelLog {
+  id        String  @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  tripId String?
+  trip   Trip?   @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  liters Float
+  cost   Decimal  @db.Decimal(12, 2)
+  date   DateTime @default(now())
+
+  loggedById String
+  loggedBy   User   @relation("FuelLoggedBy", fields: [loggedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
+  @@index([date])
+  @@map("fuel_logs")
+}
+
+/// Section 3.7 - miscellaneous operational expenses (tolls, fines, permits...).
+model Expense {
+  id        String   @id @default(cuid())
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(12, 2)
+  date        DateTime        @default(now())
+  description String?
+
+  loggedById String
+  loggedBy   User   @relation("ExpenseLoggedBy", fields: [loggedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
+  @@index([category])
+  @@map("expenses")
+}
