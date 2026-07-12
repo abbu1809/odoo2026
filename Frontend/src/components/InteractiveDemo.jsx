@@ -257,7 +257,7 @@ const InteractiveDemo = ({ activeTab, setActiveTab }) => {
     setCompletedSteps([]);
     setCurrentStep(1);
     setCreatedTripId(null);
-    setActiveTab('landing');
+    setActiveTab('dashboard');
   };
 
   return (

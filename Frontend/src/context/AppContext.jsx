@@ -596,11 +596,64 @@ export const AppProvider = ({ children }) => {
     showToast('Database reset to initial demo seeds.', 'info');
   };
 
+  const rolePermissions = {
+    'Fleet Manager': {
+      dashboard: 'None',
+      vehicles: 'Full',
+      drivers: 'Full',
+      trips: 'None',
+      maintenance: 'Full',
+      expenses: 'None',
+      reports: 'Full',
+      settings: 'Full'
+    },
+    'Driver': {
+      dashboard: 'Full',
+      vehicles: 'View',
+      drivers: 'None',
+      trips: 'Full',
+      maintenance: 'None',
+      expenses: 'None',
+      reports: 'None',
+      settings: 'View'
+    },
+    'Safety Officer': {
+      dashboard: 'None',
+      vehicles: 'None',
+      drivers: 'Full',
+      trips: 'View',
+      maintenance: 'None',
+      expenses: 'None',
+      reports: 'None',
+      settings: 'View'
+    },
+    'Financial Analyst': {
+      dashboard: 'None',
+      vehicles: 'View',
+      drivers: 'None',
+      trips: 'None',
+      maintenance: 'None',
+      expenses: 'Full',
+      reports: 'Full',
+      settings: 'View'
+    }
+  };
+
+  const getPermission = (tabKey) => {
+    return rolePermissions[activeUserRole]?.[tabKey] || 'None';
+  };
+
+  const hasAccess = (tabKey) => {
+    return getPermission(tabKey) !== 'None';
+  };
+
   return (
     <AppContext.Provider
       value={{
         activeUserRole,
         setActiveUserRole,
+        getPermission,
+        hasAccess,
         vehicles,
         drivers,
         trips,
