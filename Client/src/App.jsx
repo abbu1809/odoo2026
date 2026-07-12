@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import InteractiveDemo from './components/InteractiveDemo';
 
 // Import Views
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import VehicleRegistry from './pages/VehicleRegistry';
@@ -29,6 +30,7 @@ const pageTitles = {
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [userName, setUserName] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const { notifications, activeUserRole, setActiveUserRole, hasAccess } = useApp();
@@ -63,15 +65,26 @@ function AppContent() {
     }) || 'dashboard';
     
     setActiveTab(initialTab);
+    setShowLogin(false);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserName('');
+    setShowLogin(false);
   };
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    if (showLogin) {
+      return <LoginPage onLogin={handleLogin} onBack={() => setShowLogin(false)} />;
+    }
+    return (
+      <LandingPage 
+        setActiveTab={setActiveTab} 
+        onLoginClick={() => setShowLogin(true)} 
+        isLoggedIn={false} 
+      />
+    );
   }
 
   const renderPage = () => {
