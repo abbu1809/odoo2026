@@ -30,17 +30,18 @@ function buildUrl(path, params) {
   return url;
 }
 
-async function request(path, { method = 'GET', body, params, responseType } = {}) {
+async function request(path, { method = 'GET', body, params, responseType, isFormData } = {}) {
   const headers = {};
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  // Leave Content-Type unset for FormData — the browser fills in the boundary.
+  if (body !== undefined && !isFormData) headers['Content-Type'] = 'application/json';
 
   let res;
   try {
     res = await fetch(buildUrl(path, params), {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
     });
   } catch {
     throw new ApiError('Could not reach the server. Is the backend running?', 0);
@@ -76,4 +77,5 @@ export const api = {
   patch: (path, body) => request(path, { method: 'PATCH', body }),
   delete: (path) => request(path, { method: 'DELETE' }),
   getBlob: (path, params) => request(path, { method: 'GET', params, responseType: 'blob' }),
+  postForm: (path, formData) => request(path, { method: 'POST', body: formData, isFormData: true }),
 };

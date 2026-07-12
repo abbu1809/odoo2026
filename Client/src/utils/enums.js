@@ -1,10 +1,10 @@
-export const VEHICLE_TYPES = ['TRUCK', 'VAN', 'BUS', 'CAR', 'MOTORCYCLE', 'TRAILER', 'OTHER'];
+export const VEHICLE_TYPES = ['TRUCK', 'VAN', 'MINI', 'OTHER'];
 export const VEHICLE_STATUSES = ['AVAILABLE', 'ON_TRIP', 'IN_SHOP', 'RETIRED'];
 export const DRIVER_STATUSES = ['AVAILABLE', 'ON_TRIP', 'OFF_DUTY', 'SUSPENDED'];
 export const TRIP_STATUSES = ['DRAFT', 'DISPATCHED', 'COMPLETED', 'CANCELLED'];
 export const EXPENSE_CATEGORIES = ['TOLL', 'PARKING', 'FINE', 'PERMIT', 'INSURANCE', 'OTHER'];
 export const ROLES = ['ADMIN', 'FLEET_MANAGER', 'DRIVER', 'SAFETY_OFFICER', 'FINANCIAL_ANALYST'];
-export const REGION_SUGGESTIONS = ['North', 'East', 'South', 'West'];
+export const REGIONS = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
 
 // 'ON_TRIP' -> 'On Trip'
 export const humanize = (value) =>

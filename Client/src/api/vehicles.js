@@ -9,3 +9,5 @@ export const createVehicle = (body) => api.post('/vehicles', body).then((r) => r
 export const updateVehicle = (id, body) => api.patch(`/vehicles/${id}`, body).then((r) => r.data);
 
 export const deleteVehicle = (id) => api.delete(`/vehicles/${id}`);
+
+export const downloadVehiclesCsv = (params) => api.getBlob('/vehicles', { ...params, format: 'csv' });
