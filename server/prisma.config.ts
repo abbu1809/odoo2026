@@ -7,6 +7,10 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    // Not `ts-node` — it's incompatible with this project's typescript@7
+    // (same root cause as ts-node-dev failing to boot the dev server).
+    // The seed script is compiled by `npm run build` like everything else.
+    seed: "node dist/prisma/seed.js",
   },
   datasource: {
     url: process.env["DATABASE_URL"],
