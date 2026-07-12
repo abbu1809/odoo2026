@@ -24,6 +24,7 @@
 
 - [What is TransitOps?](#-what-is-transitops)
 - [Feature Highlights](#-feature-highlights)
+- [Screenshots](#-screenshots)
 - [Role-Based Access Control](#-role-based-access-control)
 - [Architecture](#-architecture)
 - [Tech Stack](#-tech-stack)
@@ -66,6 +67,34 @@ It's a full-stack **fleet & transport operations management system**: a hardened
 | **Dashboard** | At-a-glance KPI cards, open to every role |
 | **Reports** | Fuel Efficiency · Operational Cost · ROI · Fleet Utilization, exportable as CSV or PDF |
 | **Notifications** | Welcome email on registration, daily license-expiry reminder job (logs to console if no SMTP is configured) |
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+
+| Landing Page | Sign In |
+|---|---|
+| ![Landing Page](./screenshots/01-landing.png) | ![Login](./screenshots/02-login.png) |
+
+| Dashboard | Fleet |
+|---|---|
+| ![Dashboard](./screenshots/03-dashboard.png) | ![Fleet](./screenshots/04-vehicles.png) |
+
+| Drivers | Trips |
+|---|---|
+| ![Drivers](./screenshots/05-drivers.png) | ![Trips](./screenshots/06-trips.png) |
+
+| Maintenance | Fuel & Expenses |
+|---|---|
+| ![Maintenance](./screenshots/07-maintenance.png) | ![Fuel & Expenses](./screenshots/08-expenses.png) |
+
+| Analytics | Settings |
+|---|---|
+| ![Analytics](./screenshots/09-reports.png) | ![Settings](./screenshots/10-settings.png) |
+
+</div>
 
 ---
 
