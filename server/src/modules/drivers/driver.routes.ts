@@ -5,56 +5,78 @@ import { validate } from "../../middleware/validate.middleware";
 import { ApiError } from "../../utils/ApiError";
 import { requireParam } from "../../utils/params";
 import { DriverStatus, UserRole } from "../../../generated/prisma/enums";
+import { toCsv } from "../../utils/csv";
 import { createDriverSchema, listDriversQuerySchema, updateDriverSchema } from "./driver.validation";
 
 const router = Router();
+
+// Section 8 (RBAC) - "Drivers" column: Fleet Manager and Safety Officer own
+// it end to end; Driver and Financial Analyst have no access at all.
 const MANAGE_ROLES = [UserRole.ADMIN, UserRole.FLEET_MANAGER, UserRole.SAFETY_OFFICER];
+const READ_ROLES = MANAGE_ROLES;
 
 router.use(requireAuth);
 
 // Section 3.4 - driver profiles, with a compliance filter for Safety Officers.
-router.get("/", validate({ query: listDriversQuerySchema }), async (req, res) => {
-  const { status, search, expiringWithinDays, page, pageSize } = req.validatedQuery as unknown as {
-    status?: DriverStatus;
-    search?: string;
-    expiringWithinDays?: number;
-    page: number;
-    pageSize: number;
-  };
+router.get(
+  "/",
+  requireRole(...READ_ROLES),
+  validate({ query: listDriversQuerySchema }),
+  async (req, res) => {
+    const { status, search, expiringWithinDays, sortBy, sortOrder, format, page, pageSize } =
+      req.validatedQuery as unknown as {
+        status?: DriverStatus;
+        search?: string;
+        expiringWithinDays?: number;
+        sortBy: "name" | "licenseExpiryDate" | "safetyScore" | "createdAt";
+        sortOrder: "asc" | "desc";
+        format?: "csv";
+        page: number;
+        pageSize: number;
+      };
 
-  const where = {
-    ...(status ? { status } : {}),
-    ...(search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { licenseNumber: { contains: search, mode: "insensitive" as const } },
-          ],
-        }
-      : {}),
-    ...(expiringWithinDays !== undefined
-      ? {
-          licenseExpiryDate: {
-            lte: new Date(Date.now() + expiringWithinDays * 24 * 60 * 60 * 1000),
-          },
-        }
-      : {}),
-  };
+    const where = {
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" as const } },
+              { licenseNumber: { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+      ...(expiringWithinDays !== undefined
+        ? {
+            licenseExpiryDate: {
+              lte: new Date(Date.now() + expiringWithinDays * 24 * 60 * 60 * 1000),
+            },
+          }
+        : {}),
+    };
 
-  const [drivers, total] = await Promise.all([
-    prisma.driver.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.driver.count({ where }),
-  ]);
+    if (format === "csv") {
+      const drivers = await prisma.driver.findMany({ where, orderBy: { [sortBy]: sortOrder } });
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=drivers.csv");
+      res.send(toCsv(drivers as unknown as Record<string, unknown>[]));
+      return;
+    }
 
-  res.json({ success: true, data: drivers, meta: { page, pageSize, total } });
-});
+    const [drivers, total] = await Promise.all([
+      prisma.driver.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.driver.count({ where }),
+    ]);
 
-router.get("/:id", async (req, res) => {
+    res.json({ success: true, data: drivers, meta: { page, pageSize, total } });
+  },
+);
+
+router.get("/:id", requireRole(...READ_ROLES), async (req, res) => {
   const driver = await prisma.driver.findUnique({
     where: { id: requireParam(req, "id") },
     include: { trips: { orderBy: { createdAt: "desc" }, take: 5 } },

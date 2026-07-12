@@ -3,13 +3,14 @@ import {
   DriverStatus,
   TripStatus,
   VehicleStatus,
+  type Region,
   type VehicleType,
 } from "../../../generated/prisma/enums";
 
 export interface KpiFilters {
   type?: VehicleType;
   status?: VehicleStatus;
-  region?: string;
+  region?: Region;
 }
 
 /** Section 3.2 - dashboard KPIs, optionally scoped by vehicle type/status/region. */

@@ -5,6 +5,7 @@ import { validate } from "../../middleware/validate.middleware";
 import { ApiError } from "../../utils/ApiError";
 import { requireParam } from "../../utils/params";
 import { TripStatus, UserRole } from "../../../generated/prisma/enums";
+import { toCsv } from "../../utils/csv";
 import {
   completeTripSchema,
   createTripSchema,
@@ -14,44 +15,73 @@ import {
 import { cancelTrip, completeTrip, createTrip, dispatchTrip } from "./trip.service";
 
 const router = Router();
-const MANAGE_ROLES = [UserRole.ADMIN, UserRole.FLEET_MANAGER, UserRole.DRIVER];
+
+// Section 8 (RBAC) - "Trips" column: Driver (the dispatcher persona) owns
+// it end to end; Safety Officer can view; Fleet Manager and Financial
+// Analyst have no access at all.
+const MANAGE_ROLES = [UserRole.ADMIN, UserRole.DRIVER];
+const READ_ROLES = [UserRole.ADMIN, UserRole.DRIVER, UserRole.SAFETY_OFFICER];
 
 router.use(requireAuth);
 
 // Section 3.5 - trip listing with status/vehicle/driver filters.
-router.get("/", validate({ query: listTripsQuerySchema }), async (req, res) => {
-  const { status, vehicleId, driverId, page, pageSize } = req.validatedQuery as unknown as {
-    status?: TripStatus;
-    vehicleId?: string;
-    driverId?: string;
-    page: number;
-    pageSize: number;
-  };
+router.get(
+  "/",
+  requireRole(...READ_ROLES),
+  validate({ query: listTripsQuerySchema }),
+  async (req, res) => {
+    const { status, vehicleId, driverId, sortBy, sortOrder, format, page, pageSize } =
+      req.validatedQuery as unknown as {
+        status?: TripStatus;
+        vehicleId?: string;
+        driverId?: string;
+        sortBy: "source" | "destination" | "cargoWeightKg" | "plannedDistanceKm" | "createdAt";
+        sortOrder: "asc" | "desc";
+        format?: "csv";
+        page: number;
+        pageSize: number;
+      };
 
-  const where = {
-    ...(status ? { status } : {}),
-    ...(vehicleId ? { vehicleId } : {}),
-    ...(driverId ? { driverId } : {}),
-  };
+    const where = {
+      ...(status ? { status } : {}),
+      ...(vehicleId ? { vehicleId } : {}),
+      ...(driverId ? { driverId } : {}),
+    };
 
-  const [trips, total] = await Promise.all([
-    prisma.trip.findMany({
-      where,
-      include: {
-        vehicle: { select: { id: true, registrationNumber: true, name: true } },
-        driver: { select: { id: true, name: true, licenseNumber: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.trip.count({ where }),
-  ]);
+    if (format === "csv") {
+      const trips = await prisma.trip.findMany({
+        where,
+        include: {
+          vehicle: { select: { registrationNumber: true } },
+          driver: { select: { name: true } },
+        },
+        orderBy: { [sortBy]: sortOrder },
+      });
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=trips.csv");
+      res.send(toCsv(trips as unknown as Record<string, unknown>[]));
+      return;
+    }
 
-  res.json({ success: true, data: trips, meta: { page, pageSize, total } });
-});
+    const [trips, total] = await Promise.all([
+      prisma.trip.findMany({
+        where,
+        include: {
+          vehicle: { select: { id: true, registrationNumber: true, name: true } },
+          driver: { select: { id: true, name: true, licenseNumber: true } },
+        },
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.trip.count({ where }),
+    ]);
 
-router.get("/:id", async (req, res) => {
+    res.json({ success: true, data: trips, meta: { page, pageSize, total } });
+  },
+);
+
+router.get("/:id", requireRole(...READ_ROLES), async (req, res) => {
   const trip = await prisma.trip.findUnique({
     where: { id: requireParam(req, "id") },
     include: { vehicle: true, driver: true, fuelLogs: true },
