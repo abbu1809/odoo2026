@@ -1,11 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ROLES, humanize } from '../utils/enums';
+import { Moon, Sun } from 'lucide-react';
+
+const THEME_KEY = 'transitops_theme';
 
 const LoginPage = ({ onBack }) => {
   const { login, register, authLoading } = useApp();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [error, setError] = useState('');
+
+  const [isDark, setIsDark] = useState(() => {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'dark') return true;
+    if (stored === 'light') return false;
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.body.classList.add('dark-mode');
+      document.body.classList.remove('light-mode');
+      localStorage.setItem(THEME_KEY, 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      document.body.classList.add('light-mode');
+      localStorage.setItem(THEME_KEY, 'light');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark((prev) => !prev);
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({
@@ -66,7 +90,16 @@ const LoginPage = ({ onBack }) => {
       </div>
 
       {/* Right Panel — Form */}
-      <div className="login-right">
+      <div className="login-right" style={{ position: 'relative' }}>
+        {/* Theme Toggle */}
+        <button
+          className="dark-mode-toggle"
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          style={{ position: 'absolute', top: '20px', right: '20px' }}
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
         <div className="login-form-container">
           {onBack && (
             <button

@@ -98,6 +98,10 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #555; }
 
 /* Login page — left panel stays dark, right panel goes dark */
 body.dark-mode .login-page { background: #1E2130; }
+body.dark-mode .login-left { background: #141413; color: #fff; }
+body.dark-mode .login-left h1 { color: #fff; }
+body.dark-mode .login-left h3 { color: #fff; }
+body.dark-mode .login-left li { color: rgba(255,255,255,0.85); }
 body.dark-mode .login-right { background: #1E2130; }
 body.dark-mode .login-form-container h2 { color: #E8E6E3; }
 body.dark-mode .login-field input,
