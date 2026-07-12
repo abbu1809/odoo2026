@@ -24,14 +24,20 @@ enum UserRole {
   FINANCIAL_ANALYST
 }
 
+/// Simplified to the three types the product actually distinguishes, plus a catch-all.
 enum VehicleType {
   TRUCK
   VAN
-  BUS
-  CAR
-  MOTORCYCLE
-  TRAILER
+  MINI
   OTHER
+}
+
+/// Fixed dispatch regions (replaces the old freeform Vehicle.region string).
+enum Region {
+  NORTH
+  EAST
+  SOUTH
+  WEST
 }
 
 /// Section 3.3 - Vehicle Registry status values
@@ -86,15 +92,21 @@ model User {
   passwordHash String
   role         UserRole
   isActive     Boolean  @default(true)
+
+  // Account-lockout (section 3.1 - lock after 5 failed login attempts).
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   // Reverse relations (audit trail of who created/logged what)
-  driverProfile   Driver?
-  createdTrips    Trip[]           @relation("TripCreatedBy")
-  maintenanceLogs MaintenanceLog[] @relation("MaintenanceCreatedBy")
-  fuelLogs        FuelLog[]        @relation("FuelLoggedBy")
-  expenses        Expense[]        @relation("ExpenseLoggedBy")
+  driverProfile     Driver?
+  createdTrips      Trip[]            @relation("TripCreatedBy")
+  maintenanceLogs   MaintenanceLog[]  @relation("MaintenanceCreatedBy")
+  fuelLogs          FuelLog[]         @relation("FuelLoggedBy")
+  expenses          Expense[]         @relation("ExpenseLoggedBy")
+  uploadedDocuments VehicleDocument[] @relation("DocumentUploadedBy")
 
   @@map("users")
 }
@@ -109,7 +121,7 @@ model Vehicle {
   odometerKm         Float         @default(0)
   acquisitionCost    Decimal       @db.Decimal(12, 2)
   status             VehicleStatus @default(AVAILABLE)
-  region             String?
+  region             Region?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -118,11 +130,34 @@ model Vehicle {
   maintenanceLogs MaintenanceLog[]
   fuelLogs        FuelLog[]
   expenses        Expense[]
+  documents       VehicleDocument[]
 
   @@index([status])
   @@index([type])
   @@index([region])
   @@map("vehicles")
+}
+
+/// Todo.md - vehicle document management (RC, insurance, permits...), stored
+/// on local disk (see server/uploads/vehicle-docs) and referenced by path.
+model VehicleDocument {
+  id        String  @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  label        String
+  fileName     String
+  filePath     String
+  mimeType     String
+  fileSizeBytes Int
+
+  uploadedById String
+  uploadedBy   User   @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
+  @@map("vehicle_documents")
 }
 
 /// Section 3.4 - driver profiles (the person operating a vehicle).

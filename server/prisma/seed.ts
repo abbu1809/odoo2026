@@ -39,7 +39,7 @@ async function main() {
       odometerKm: 0,
       acquisitionCost: 850000,
       status: "AVAILABLE",
-      region: "West",
+      region: "WEST",
     },
   });
 
@@ -54,7 +54,7 @@ async function main() {
       odometerKm: 124000,
       acquisitionCost: 9500000,
       status: "AVAILABLE",
-      region: "East",
+      region: "EAST",
     },
   });
 
@@ -63,13 +63,13 @@ async function main() {
     update: {},
     create: {
       registrationNumber: "BUS-02",
-      name: "Tata Starbus",
-      type: "BUS",
+      name: "Tata Starbus Mini",
+      type: "MINI",
       maxLoadCapacityKg: 3000,
       odometerKm: 68000,
       acquisitionCost: 4200000,
       status: "IN_SHOP",
-      region: "North",
+      region: "NORTH",
     },
   });
 
@@ -79,12 +79,12 @@ async function main() {
     create: {
       registrationNumber: "CAR-03",
       name: "Toyota Camry Support",
-      type: "CAR",
+      type: "MINI",
       maxLoadCapacityKg: 350,
       odometerKm: 45000,
       acquisitionCost: 2400000,
       status: "AVAILABLE",
-      region: "South",
+      region: "SOUTH",
     },
   });
 
@@ -93,13 +93,13 @@ async function main() {
     update: {},
     create: {
       registrationNumber: "TRAILER-09",
-      name: "Peterbilt 389 Semi",
-      type: "TRAILER",
+      name: "Peterbilt 389 Semi Truck",
+      type: "TRUCK",
       maxLoadCapacityKg: 15000,
       odometerKm: 420000,
       acquisitionCost: 15000000,
       status: "RETIRED",
-      region: "West",
+      region: "WEST",
     },
   });
 
