@@ -2,8 +2,10 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
+# package-lock.json* (wildcard) so the build still works if no lockfile is
+# committed yet — npm install generates one inside the image in that case.
+COPY package.json package-lock.json* ./
+RUN npm install
 
 COPY . .
 

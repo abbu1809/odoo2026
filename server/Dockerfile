@@ -5,8 +5,10 @@ WORKDIR /app
 # Prisma's engines need these on Alpine/musl.
 RUN apk add --no-cache openssl libc6-compat
 
-COPY package.json package-lock.json ./
-RUN npm ci
+# package-lock.json* (wildcard) so the build still works if no lockfile is
+# committed yet — npm install generates one inside the image in that case.
+COPY package.json package-lock.json* ./
+RUN npm install
 
 COPY . .
 
