@@ -22,18 +22,23 @@
 
 ## 📖 Table of Contents
 
-- [What is TransitOps?](#-what-is-transitops)
-- [Feature Highlights](#-feature-highlights)
-- [Screenshots](#-screenshots)
-- [Role-Based Access Control](#-role-based-access-control)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [API Structure](#-api-structure)
-- [Database Schema](#-database-schema)
-- [How to Run](#-how-to-run)
-- [Roadmap / Future Scope](#-roadmap--future-scope)
-- [Team](#-team)
+- [🚚 TransitOps](#-transitops)
+    - [Smart Transport \& Fleet Operations Platform](#smart-transport--fleet-operations-platform)
+  - [📖 Table of Contents](#-table-of-contents)
+  - [🧭 What is TransitOps?](#-what-is-transitops)
+  - [✨ Feature Highlights](#-feature-highlights)
+  - [📸 Screenshots](#-screenshots)
+  - [🔐 Role-Based Access Control](#-role-based-access-control)
+  - [🏗️ Architecture](#️-architecture)
+  - [🛠️ Tech Stack](#️-tech-stack)
+  - [📂 Project Structure](#-project-structure)
+  - [🔌 API Structure](#-api-structure)
+  - [🗄️ Database Schema](#️-database-schema)
+  - [🚀 How to Run](#-how-to-run)
+    - [Tear down](#tear-down)
+    - [Demo accounts](#demo-accounts)
+  - [🗺️ Roadmap / Future Scope](#️-roadmap--future-scope)
+  - [🤝 Team](#-team)
 
 ---
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Download, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Download, Upload, FileText } from 'lucide-react';
 import { VEHICLE_TYPES, VEHICLE_STATUSES, REGIONS, humanize, slug, formatMoney } from '../utils/enums';
 import { downloadBlob } from '../utils/download';
 import * as vehiclesApi from '../api/vehicles';
@@ -43,9 +43,20 @@ const VehicleRegistry = () => {
   const [docLabel, setDocLabel] = useState('');
   const [docFile, setDocFile] = useState(null);
   const [docBusy, setDocBusy] = useState(false);
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [activeVehicleForDocs, setActiveVehicleForDocs] = useState(null);
 
   const canEdit = canWrite('vehicles');
   const canRemove = canDelete('vehicles');
+
+  const openDocumentsModal = (v) => {
+    setActiveVehicleForDocs(v);
+    setDocuments([]);
+    setDocLabel('');
+    setDocFile(null);
+    setDocModalOpen(true);
+    loadDocuments(v.id);
+  };
 
   const toggleSort = (key) => {
     if (sortKey === key) {
@@ -220,7 +231,7 @@ const VehicleRegistry = () => {
                   </span>
                 </th>
               ))}
-              {(canEdit || canRemove) && <th>Actions</th>}
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -233,18 +244,17 @@ const VehicleRegistry = () => {
                 <td>{Number(v.odometerKm).toLocaleString()} km</td>
                 <td>{formatMoney(v.acquisitionCost)}</td>
                 <td><span className={`status-badge status-badge-${slug(v.status)}`}>{humanize(v.status)}</span></td>
-                {(canEdit || canRemove) && (
-                  <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {canEdit && (
-                        <button className="btn-action btn-action-secondary" style={{ padding: '4px 10px' }} onClick={() => openEdit(v)}><Pencil size={14} /></button>
-                      )}
-                      {canRemove && (
-                        <button className="btn-action btn-action-danger" style={{ padding: '4px 10px' }} onClick={() => deleteVehicle(v.id)}><Trash2 size={14} /></button>
-                      )}
-                    </div>
-                  </td>
-                )}
+                <td>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn-action btn-action-secondary" style={{ padding: '4px 10px' }} title="Documents" onClick={() => openDocumentsModal(v)}><FileText size={14} /></button>
+                    {canEdit && (
+                      <button className="btn-action btn-action-secondary" style={{ padding: '4px 10px' }} title="Edit" onClick={() => openEdit(v)}><Pencil size={14} /></button>
+                    )}
+                    {canRemove && (
+                      <button className="btn-action btn-action-danger" style={{ padding: '4px 10px' }} title="Delete" onClick={() => deleteVehicle(v.id)}><Trash2 size={14} /></button>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
@@ -354,6 +364,75 @@ const VehicleRegistry = () => {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Documents Modal */}
+      {docModalOpen && activeVehicleForDocs && (
+        <div className="modal-overlay" onClick={() => setDocModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Documents for {activeVehicleForDocs.registrationNumber}</h3>
+            <p style={{ color: 'var(--slate-gray)', fontSize: '0.85rem', marginBottom: 16 }}>{activeVehicleForDocs.name}</p>
+            
+            <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: 20 }}>
+              {documents.length > 0 ? (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {documents.map((doc) => (
+                    <li key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.88rem', padding: '8px 12px', background: 'var(--lifted-cream)', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                      <span style={{ fontWeight: 500 }}>{doc.label} <span style={{ fontSize: '0.75rem', color: 'var(--slate-gray)', fontWeight: 400 }}>({doc.fileName})</span></span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button type="button" className="btn-action btn-action-secondary" style={{ padding: '4px 8px' }} onClick={() => handleDownloadDocument(doc)}><Download size={13} /></button>
+                        {canEdit && (
+                          <button type="button" className="btn-action btn-action-danger" style={{ padding: '4px 8px' }} onClick={() => handleDeleteDocument(doc)}><Trash2 size={13} /></button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div style={{ fontSize: '0.85rem', color: 'var(--slate-gray)', padding: '16px 0', textAlign: 'center' }}>No documents uploaded yet.</div>
+              )}
+            </div>
+
+            {canEdit && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!docFile || !docLabel.trim()) return;
+                setDocBusy(true);
+                try {
+                  await vehicleDocumentsApi.uploadVehicleDocument(activeVehicleForDocs.id, { label: docLabel.trim(), file: docFile });
+                  setDocLabel('');
+                  setDocFile(null);
+                  await loadDocuments(activeVehicleForDocs.id);
+                  showToast('Document uploaded.');
+                } catch (err) {
+                  showToast(err.message || 'Failed to upload document', 'error');
+                } finally {
+                  setDocBusy(false);
+                }
+              }} style={{ display: 'flex', flexDirection: 'column', gap: 12, borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Upload Document</h4>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <input
+                    className="form-input"
+                    placeholder="Document label (e.g. Registration Certificate, Insurance)"
+                    value={docLabel}
+                    onChange={(e) => setDocLabel(e.target.value)}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <input type="file" required onChange={(e) => setDocFile(e.target.files?.[0] || null)} style={{ fontSize: '0.85rem', flex: 1 }} />
+                  <button type="submit" className="btn-action btn-action-primary" disabled={docBusy || !docFile || !docLabel.trim()}>
+                    <Upload size={14} /> {docBusy ? 'Uploading…' : 'Upload'}
+                  </button>
+                </div>
+              </form>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+              <button type="button" className="btn-action btn-action-secondary" onClick={() => setDocModalOpen(false)}>Close</button>
+            </div>
           </div>
         </div>
       )}

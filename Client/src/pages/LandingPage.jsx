@@ -1,9 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { ArrowRight, Truck, Shield, DollarSign, Activity, FileText, Search } from 'lucide-react';
+import { ArrowRight, Truck, Shield, DollarSign, Activity, FileText, Search, Moon, Sun } from 'lucide-react';
 import LandingFooter from '../components/LandingFooter';
 
+const THEME_KEY = 'transitops_theme';
+
 const LandingPage = ({ setActiveTab, onLoginClick, isLoggedIn }) => {
+  const [isDark, setIsDark] = useState(() => {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'dark') return true;
+    if (stored === 'light') return false;
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.body.classList.add('dark-mode');
+      document.body.classList.remove('light-mode');
+      localStorage.setItem(THEME_KEY, 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      document.body.classList.add('light-mode');
+      localStorage.setItem(THEME_KEY, 'light');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark((prev) => !prev);
+
   return (
     <div style={{ position: 'relative' }}>
     <div style={{ position: 'relative', overflow: 'hidden', maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
@@ -32,8 +55,16 @@ const LandingPage = ({ setActiveTab, onLoginClick, isLoggedIn }) => {
         </div>
 
         {/* Right Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Dark Mode Toggle */}
+          <button
+            className="dark-mode-toggle"
+            onClick={toggleTheme}
+            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           {isLoggedIn ? (
             <button 
               onClick={() => setActiveTab('dashboard')} 

@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { formatMoney } from '../utils/enums';
 import { downloadBlob } from '../utils/download';
 import * as reportsApi from '../api/reports';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const Reports = () => {
   const { vehicles, reportsOverview, refreshReports, showToast } = useApp();
@@ -106,25 +107,37 @@ const Reports = () => {
 
       {/* Top Costliest Vehicles */}
       <div className="analytics-charts-grid">
-        <div className="dash-section">
+        <div className="dash-section" style={{ display: 'flex', flexDirection: 'column' }}>
           <h4>Top Costliest Vehicles</h4>
-          <div className="vehicle-status-bar">
-            {vehicleCosts.map((v, i) => (
-              <div className="status-bar-row" key={v.vehicleId}>
-                <span className="status-bar-label">{v.registrationNumber}</span>
-                <div className="status-bar-track">
-                  <div
-                    className="status-bar-fill"
-                    style={{
-                      width: `${(Number(v.operationalCost || 0) / maxCost) * 100}%`,
-                      background: costColors[i % costColors.length],
-                      minWidth: Number(v.operationalCost || 0) > 0 ? '16px' : '0',
+          <div style={{ width: '100%', height: '240px', flex: 1, minHeight: '220px', marginTop: 10 }}>
+            {vehicleCosts.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={vehicleCosts}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-light)" />
+                  <XAxis type="number" tickFormatter={(val) => `$${val}`} stroke="var(--slate-gray)" fontSize={11} />
+                  <YAxis dataKey="registrationNumber" type="category" stroke="var(--slate-gray)" fontSize={11} width={80} />
+                  <Tooltip
+                    formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Operational Cost']}
+                    contentStyle={{ 
+                      background: 'var(--white)', 
+                      border: '1px solid var(--border-light)', 
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontFamily: 'var(--font-primary)'
                     }}
                   />
-                </div>
-              </div>
-            ))}
-            {vehicleCosts.length === 0 && (
+                  <Bar dataKey="operationalCost" radius={[0, 4, 4, 0]}>
+                    {vehicleCosts.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={costColors[index % costColors.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
               <div style={{ color: 'var(--slate-gray)', padding: 20, textAlign: 'center' }}>No cost data available.</div>
             )}
           </div>

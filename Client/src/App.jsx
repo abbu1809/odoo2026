@@ -31,7 +31,7 @@ const pageTitles = {
 function AppContent() {
   const [showLogin, setShowLogin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { isAuthenticated, initializing, notifications } = useApp();
+  const { isAuthenticated, initializing, notifications, canRead } = useApp();
 
   // No router in this SPA — any path other than "/" was never linked to from
   // inside the app, so it's an unknown/broken route.
@@ -63,12 +63,12 @@ function AppContent() {
   const renderPage = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
-      case 'vehicles': return <VehicleRegistry />;
-      case 'drivers': return <DriverManagement />;
-      case 'trips': return <TripManagement />;
-      case 'maintenance': return <Maintenance />;
-      case 'expenses': return <Expenses />;
-      case 'reports': return <Reports />;
+      case 'vehicles': return canRead('vehicles') ? <VehicleRegistry /> : <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
+      case 'drivers': return canRead('drivers') ? <DriverManagement /> : <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
+      case 'trips': return canRead('trips') ? <TripManagement /> : <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
+      case 'maintenance': return canRead('maintenance') ? <Maintenance /> : <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
+      case 'expenses': return canRead('fuelLogs') ? <Expenses /> : <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
+      case 'reports': return canRead('reports') ? <Reports /> : <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
       case 'settings': return <Settings />;
       default: return <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
     }
