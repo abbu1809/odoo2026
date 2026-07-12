@@ -4,6 +4,7 @@ generated/prisma
 
 .env
 .env.local
+!.env.example
 *.log
 npm-debug.log*
 
