@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   LayoutDashboard, Truck, Users, MapPin, Wrench,
-  Receipt, BarChart3, Settings, Search, ChevronDown, LogOut
+  Receipt, BarChart3, Settings, Search, ChevronDown, LogOut,
+  Moon, Sun
 } from 'lucide-react';
 import { humanize } from '../utils/enums';
 
@@ -52,9 +53,34 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   );
 };
 
+const THEME_KEY = 'transitops_theme';
+
 const Topbar = () => {
   const { user, logout } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Dark mode state — initialize from localStorage or OS preference
+  const [isDark, setIsDark] = useState(() => {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'dark') return true;
+    if (stored === 'light') return false;
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  });
+
+  // Sync body class and localStorage whenever isDark changes
+  useEffect(() => {
+    if (isDark) {
+      document.body.classList.add('dark-mode');
+      document.body.classList.remove('light-mode');
+      localStorage.setItem(THEME_KEY, 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      document.body.classList.add('light-mode');
+      localStorage.setItem(THEME_KEY, 'light');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark((prev) => !prev);
 
   const initials = (user?.name || '?')
     .split(' ')
@@ -71,6 +97,15 @@ const Topbar = () => {
       </div>
 
       <div className="topbar-user">
+        {/* Dark Mode Toggle */}
+        <button
+          className="dark-mode-toggle"
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+
         <span className="topbar-user-name">{user?.name}</span>
 
         <div style={{ position: 'relative' }}>

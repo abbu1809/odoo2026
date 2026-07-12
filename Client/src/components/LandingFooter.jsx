@@ -26,7 +26,7 @@ const LandingFooter = () => {
       style={{
         marginTop: '40px',
         borderTop: '1px solid var(--border-light)',
-        background: 'var(--ink-black)',
+        background: '#141413',
         color: 'rgba(255,255,255,0.7)',
       }}
     >
