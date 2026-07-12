@@ -1,18 +1,66 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { EXPENSE_CATEGORIES, humanize, formatMoney, formatDate } from '../utils/enums';
+import { downloadBlob } from '../utils/download';
+import * as fuelLogsApi from '../api/fuelLogs';
+import * as expensesApi from '../api/expenses';
+
+const FUEL_SORT_COLUMNS = [
+  { key: 'vehicleId', label: 'Vehicle' },
+  { key: 'date', label: 'Date' },
+  { key: 'liters', label: 'Liters' },
+  { key: 'cost', label: 'Fuel Cost' },
+];
+
+const EXPENSE_SORT_COLUMNS = [
+  { key: 'vehicleId', label: 'Vehicle' },
+  { key: 'category', label: 'Category' },
+  { key: 'amount', label: 'Amount' },
+  { key: 'description', label: 'Description' },
+  { key: 'date', label: 'Date' },
+];
+
+function useSort(defaultKey) {
+  const [sortKey, setSortKey] = useState(defaultKey);
+  const [sortDir, setSortDir] = useState('desc');
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+  return { sortKey, sortDir, toggleSort };
+}
+
+const SortableHead = ({ columns, sortKey, sortDir, toggleSort, extra }) => (
+  <tr>
+    {columns.map((col) => (
+      <th key={col.key} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort(col.key)}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {col.label}
+          {sortKey === col.key && (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+        </span>
+      </th>
+    ))}
+    {extra}
+  </tr>
+);
 
 const Expenses = () => {
   const {
     vehicles, fuelLogs, expenses,
     addFuelLog, deleteFuelLog, addGeneralExpense, deleteExpense,
-    canWrite, canDelete,
+    canWrite, canDelete, showToast,
   } = useApp();
 
   const [showFuelModal, setShowFuelModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [exportingFuelCsv, setExportingFuelCsv] = useState(false);
+  const [exportingExpenseCsv, setExportingExpenseCsv] = useState(false);
 
   const [fuelForm, setFuelForm] = useState({ vehicleId: '', liters: '', cost: '' });
   const [expForm, setExpForm] = useState({ vehicleId: '', category: 'TOLL', amount: '', description: '' });
@@ -21,6 +69,58 @@ const Expenses = () => {
   const canRemove = canDelete('expenses');
 
   const vehicleById = (id) => vehicles.find((v) => v.id === id);
+
+  const fuelSort = useSort('date');
+  const expenseSort = useSort('date');
+
+  const sortedFuelLogs = [...fuelLogs].sort((a, b) => {
+    const av = fuelSort.sortKey === 'vehicleId' ? vehicleById(a.vehicleId)?.registrationNumber : a[fuelSort.sortKey];
+    const bv = fuelSort.sortKey === 'vehicleId' ? vehicleById(b.vehicleId)?.registrationNumber : b[fuelSort.sortKey];
+    const cmp = typeof av === 'number' ? av - bv : String(av ?? '').localeCompare(String(bv ?? ''));
+    return fuelSort.sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const sortedExpenses = [...expenses].sort((a, b) => {
+    const av = expenseSort.sortKey === 'vehicleId' ? vehicleById(a.vehicleId)?.registrationNumber : a[expenseSort.sortKey];
+    const bv = expenseSort.sortKey === 'vehicleId' ? vehicleById(b.vehicleId)?.registrationNumber : b[expenseSort.sortKey];
+    const cmp = typeof av === 'number' ? av - bv : String(av ?? '').localeCompare(String(bv ?? ''));
+    return expenseSort.sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const FUEL_SERVER_SORT_KEYS = ['liters', 'cost', 'date'];
+  const EXPENSE_SERVER_SORT_KEYS = ['amount', 'category', 'date'];
+
+  const handleExportFuelCsv = async () => {
+    setExportingFuelCsv(true);
+    try {
+      const blob = await fuelLogsApi.downloadFuelLogsCsv(
+        FUEL_SERVER_SORT_KEYS.includes(fuelSort.sortKey)
+          ? { sortBy: fuelSort.sortKey, sortOrder: fuelSort.sortDir }
+          : {},
+      );
+      downloadBlob(blob, 'fuel-logs.csv');
+    } catch (err) {
+      showToast(err.message || 'Failed to export CSV', 'error');
+    } finally {
+      setExportingFuelCsv(false);
+    }
+  };
+
+  const handleExportExpenseCsv = async () => {
+    setExportingExpenseCsv(true);
+    try {
+      const blob = await expensesApi.downloadExpensesCsv(
+        EXPENSE_SERVER_SORT_KEYS.includes(expenseSort.sortKey)
+          ? { sortBy: expenseSort.sortKey, sortOrder: expenseSort.sortDir }
+          : {},
+      );
+      downloadBlob(blob, 'expenses.csv');
+    } catch (err) {
+      showToast(err.message || 'Failed to export CSV', 'error');
+    } finally {
+      setExportingExpenseCsv(false);
+    }
+  };
 
   const handleFuelSubmit = async (e) => {
     e.preventDefault();
@@ -69,20 +169,25 @@ const Expenses = () => {
 
       {/* Fuel Logs Table */}
       <div style={{ marginBottom: 24 }}>
-        <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 14, color: 'var(--charcoal)' }}>Fuel Logs</h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--charcoal)' }}>Fuel Logs</h4>
+          <button className="btn-action btn-action-secondary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={handleExportFuelCsv} disabled={exportingFuelCsv}>
+            {exportingFuelCsv ? 'Exporting…' : 'Export CSV'}
+          </button>
+        </div>
         <div className="table-wrapper">
           <table className="data-table">
             <thead>
-              <tr>
-                <th>Vehicle</th>
-                <th>Date</th>
-                <th>Liters</th>
-                <th>Fuel Cost</th>
-                {canRemove && <th>Action</th>}
-              </tr>
+              <SortableHead
+                columns={FUEL_SORT_COLUMNS}
+                sortKey={fuelSort.sortKey}
+                sortDir={fuelSort.sortDir}
+                toggleSort={fuelSort.toggleSort}
+                extra={canRemove && <th>Action</th>}
+              />
             </thead>
             <tbody>
-              {fuelLogs.map((log) => (
+              {sortedFuelLogs.map((log) => (
                 <tr key={log.id}>
                   <td style={{ fontWeight: 600 }}>{vehicleById(log.vehicleId)?.registrationNumber || log.vehicleId}</td>
                   <td>{formatDate(log.date)}</td>
@@ -105,21 +210,25 @@ const Expenses = () => {
 
       {/* Other Expenses Table */}
       <div>
-        <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 14, color: 'var(--charcoal)' }}>Other Expenses (Toll / Permit / Insurance / Misc)</h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--charcoal)' }}>Other Expenses (Toll / Permit / Insurance / Misc)</h4>
+          <button className="btn-action btn-action-secondary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={handleExportExpenseCsv} disabled={exportingExpenseCsv}>
+            {exportingExpenseCsv ? 'Exporting…' : 'Export CSV'}
+          </button>
+        </div>
         <div className="table-wrapper">
           <table className="data-table">
             <thead>
-              <tr>
-                <th>Vehicle</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Description</th>
-                <th>Date</th>
-                {canRemove && <th>Action</th>}
-              </tr>
+              <SortableHead
+                columns={EXPENSE_SORT_COLUMNS}
+                sortKey={expenseSort.sortKey}
+                sortDir={expenseSort.sortDir}
+                toggleSort={expenseSort.toggleSort}
+                extra={canRemove && <th>Action</th>}
+              />
             </thead>
             <tbody>
-              {expenses.map((exp) => (
+              {sortedExpenses.map((exp) => (
                 <tr key={exp.id}>
                   <td style={{ fontWeight: 600 }}>{vehicleById(exp.vehicleId)?.registrationNumber || exp.vehicleId}</td>
                   <td>{humanize(exp.category)}</td>

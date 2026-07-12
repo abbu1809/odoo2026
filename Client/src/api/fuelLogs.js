@@ -9,3 +9,5 @@ export const createFuelLog = (body) => api.post('/fuel-logs', body).then((r) => 
 export const updateFuelLog = (id, body) => api.patch(`/fuel-logs/${id}`, body).then((r) => r.data);
 
 export const deleteFuelLog = (id) => api.delete(`/fuel-logs/${id}`);
+
+export const downloadFuelLogsCsv = (params) => api.getBlob('/fuel-logs', { ...params, format: 'csv' });
