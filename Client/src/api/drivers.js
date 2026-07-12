@@ -9,3 +9,5 @@ export const createDriver = (body) => api.post('/drivers', body).then((r) => r.d
 export const updateDriver = (id, body) => api.patch(`/drivers/${id}`, body).then((r) => r.data);
 
 export const deleteDriver = (id) => api.delete(`/drivers/${id}`);
+
+export const downloadDriversCsv = (params) => api.getBlob('/drivers', { ...params, format: 'csv' });

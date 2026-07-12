@@ -1,17 +1,33 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { DRIVER_STATUSES, humanize, slug, formatDate } from '../utils/enums';
+import { downloadBlob } from '../utils/download';
+import * as driversApi from '../api/drivers';
 
 const emptyForm = {
   name: '', licenseNumber: '', licenseCategory: '',
   licenseExpiryDate: '', contactNumber: '',
 };
 
+const SORTABLE_COLUMNS = [
+  { key: 'name', label: 'Driver' },
+  { key: 'licenseNumber', label: 'License No' },
+  { key: 'licenseCategory', label: 'Category' },
+  { key: 'licenseExpiryDate', label: 'Expiry' },
+  { key: 'contactNumber', label: 'Contact' },
+  { key: 'safetyScore', label: 'Safety' },
+  { key: 'status', label: 'Status' },
+];
+
+// Columns the server list endpoint can actually sort by (see driver.validation.ts) —
+// others (licenseNumber, licenseCategory, contactNumber, status) are sorted client-side only.
+const SERVER_SORT_KEYS = ['name', 'licenseExpiryDate', 'safetyScore'];
+
 const DriverManagement = () => {
   const {
     drivers, addDriver, updateDriver, deleteDriver,
-    checkIsLicenseExpired, checkIsLicenseExpiringSoon, canWrite, canDelete,
+    checkIsLicenseExpired, checkIsLicenseExpiringSoon, canWrite, canDelete, showToast,
   } = useApp();
 
   const [showModal, setShowModal] = useState(false);
@@ -19,9 +35,42 @@ const DriverManagement = () => {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [sortKey, setSortKey] = useState('name');
+  const [sortDir, setSortDir] = useState('asc');
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const canEdit = canWrite('drivers');
   const canRemove = canDelete('drivers');
+
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedDrivers = [...drivers].sort((a, b) => {
+    const av = a[sortKey];
+    const bv = b[sortKey];
+    const cmp = typeof av === 'number' ? av - bv : String(av ?? '').localeCompare(String(bv ?? ''));
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const handleExportCsv = async () => {
+    setExportingCsv(true);
+    try {
+      const blob = await driversApi.downloadDriversCsv(
+        SERVER_SORT_KEYS.includes(sortKey) ? { sortBy: sortKey, sortOrder: sortDir } : {},
+      );
+      downloadBlob(blob, 'drivers.csv');
+    } catch (err) {
+      showToast(err.message || 'Failed to export CSV', 'error');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
 
   const openAdd = () => { setForm(emptyForm); setEditMode(false); setEditId(null); setShowModal(true); };
   const openEdit = (d) => {
@@ -63,7 +112,10 @@ const DriverManagement = () => {
   return (
     <div>
       {/* Header + Add */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginBottom: 16 }}>
+        <button className="btn-action btn-action-secondary" onClick={handleExportCsv} disabled={exportingCsv}>
+          {exportingCsv ? 'Exporting…' : 'Export CSV'}
+        </button>
         {canEdit && (
           <button className="btn-action btn-action-primary" onClick={openAdd}>
             <Plus size={16} /> Add Driver
@@ -76,18 +128,19 @@ const DriverManagement = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Driver</th>
-              <th>License No</th>
-              <th>Category</th>
-              <th>Expiry</th>
-              <th>Contact</th>
-              <th>Safety</th>
-              <th>Status</th>
+              {SORTABLE_COLUMNS.map((col) => (
+                <th key={col.key} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort(col.key)}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {col.label}
+                    {sortKey === col.key && (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                  </span>
+                </th>
+              ))}
               {(canEdit || canRemove) && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
-            {drivers.map((d) => {
+            {sortedDrivers.map((d) => {
               const expired = checkIsLicenseExpired(d.licenseExpiryDate);
               const expiringSoon = checkIsLicenseExpiringSoon(d.licenseExpiryDate);
               return (
