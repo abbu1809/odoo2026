@@ -195,10 +195,10 @@ const LoginPage = ({ onBack }) => {
 
           <div className="login-access-info">
             <strong>Access is scoped by role:</strong><br />
-            • Fleet Manager → Vehicles, Drivers, Maintenance, Reports<br />
-            • Driver → Trips, Fuel logs, Expenses<br />
-            • Safety Officer → Drivers & compliance<br />
-            • Financial Analyst → Expenses & Reports<br />
+            • Fleet Manager → Vehicles (view Fleet elsewhere), Drivers, Maintenance, Analytics<br />
+            • Driver → Trips (view-only elsewhere: Vehicles)<br />
+            • Safety Officer → Drivers, view-only Trips<br />
+            • Financial Analyst → Fuel & Expenses, Analytics (view-only Vehicles)<br />
             • Admin → Full access + user management
           </div>
         </div>

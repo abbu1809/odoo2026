@@ -6,18 +6,22 @@ import {
 } from 'lucide-react';
 import { humanize } from '../utils/enums';
 
+// `resource` is used for canRead() checks; omitted for tabs everyone sees.
 const navItems = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'vehicles', label: 'Fleet', icon: Truck },
-  { key: 'drivers', label: 'Drivers', icon: Users },
-  { key: 'trips', label: 'Trips', icon: MapPin },
-  { key: 'maintenance', label: 'Maintenance', icon: Wrench },
-  { key: 'expenses', label: 'Fuel & Expenses', icon: Receipt },
-  { key: 'reports', label: 'Analytics', icon: BarChart3 },
+  { key: 'vehicles', label: 'Fleet', icon: Truck, resource: 'vehicles' },
+  { key: 'drivers', label: 'Drivers', icon: Users, resource: 'drivers' },
+  { key: 'trips', label: 'Trips', icon: MapPin, resource: 'trips' },
+  { key: 'maintenance', label: 'Maintenance', icon: Wrench, resource: 'maintenance' },
+  { key: 'expenses', label: 'Fuel & Expenses', icon: Receipt, resource: 'fuelLogs' },
+  { key: 'reports', label: 'Analytics', icon: BarChart3, resource: 'reports' },
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
+  const { canRead } = useApp();
+  const visibleItems = navItems.filter((item) => !item.resource || canRead(item.resource));
+
   return (
     <aside className="sidebar no-print">
       <div className="sidebar-brand" onClick={() => setActiveTab('dashboard')}>
@@ -26,7 +30,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
