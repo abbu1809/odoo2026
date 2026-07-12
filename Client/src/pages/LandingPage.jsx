@@ -23,10 +23,7 @@ const LandingPage = ({ setActiveTab, onLoginClick, isLoggedIn }) => {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => setActiveTab('landing')}>
-          <div style={{ display: 'flex', position: 'relative', width: '32px', height: '20px', flexShrink: 0 }}>
-            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#EB001B', position: 'absolute', left: 0, opacity: 0.9 }} />
-            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#F79E1B', position: 'absolute', left: '12px', opacity: 0.9 }} />
-          </div>
+          <img src="/logo.svg" alt="logo" style={{ width: '28px', height: '28px', flexShrink: 0 }} />
           <h2 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink-black)' }}>
             Transit<span style={{ color: 'var(--signal-orange)' }}>Ops</span>
           </h2>

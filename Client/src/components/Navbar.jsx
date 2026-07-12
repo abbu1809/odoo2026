@@ -21,10 +21,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   return (
     <aside className="sidebar no-print">
       <div className="sidebar-brand" onClick={() => setActiveTab('dashboard')}>
-        <div style={{ display: 'flex', position: 'relative', width: '32px', height: '20px', flexShrink: 0 }}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#EB001B', position: 'absolute', left: 0, opacity: 0.9 }} />
-          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#F79E1B', position: 'absolute', left: '12px', opacity: 0.9 }} />
-        </div>
+        <img src="/logo.svg" alt="logo" style={{ width: '28px', height: '28px', flexShrink: 0 }} />
         <h2>Transit<span>Ops</span></h2>
       </div>
 

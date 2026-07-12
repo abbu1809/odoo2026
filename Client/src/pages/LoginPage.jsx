@@ -45,10 +45,7 @@ const LoginPage = ({ onBack }) => {
       <div className="login-left">
         <div>
           <div className="login-brand" onClick={onBack} style={{ cursor: onBack ? 'pointer' : 'default' }}>
-            <div className="login-brand-logo">
-              <div className="login-brand-circle-1" />
-              <div className="login-brand-circle-2" />
-            </div>
+            <img src="/logo.svg" alt="logo" style={{ width: '36px', height: '36px', marginRight: '8px',background:"white",borderRadius:"50%" }} />
             <h1>Transit<span>Ops</span></h1>
           </div>
           <p className="login-subtitle">Smart Transport Operations Platform</p>
