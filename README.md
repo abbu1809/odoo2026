@@ -89,9 +89,9 @@ Every route is gated by `requireAuth` + `requireRole(...)` middleware, on **both
 
 ```
 ┌──────────────────┐        ┌───────────────────────┐        ┌──────────────────┐
-│   React 19 SPA    │  REST  │   Express 5 API        │  SQL   │   PostgreSQL 16   │
-│   (Vite + Nginx)  │ ─────▶ │   /api/v1/*  (JWT)      │ ─────▶ │   via Prisma ORM   │
-│   :5173 → :80     │  JSON  │   :4000                 │        │   :5432            │
+│   React 19 SPA   │  REST  │   Express 5 API       │  SQL   │   PostgreSQL 16  │
+│   (Vite + Nginx) │ ────▶ │   /api/v1/*  (JWT)    │ ─────▶ │   via Prisma ORM │
+│   :5173 → :80    │  JSON  │   :4000               │        │   :5432          │
 └──────────────────┘        └───────────────────────┘        └──────────────────┘
                                         │
                                         ▼
