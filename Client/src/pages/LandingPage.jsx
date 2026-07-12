@@ -1,11 +1,13 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { ArrowRight, Truck, Shield, DollarSign, Activity, FileText, Search } from 'lucide-react';
+import LandingFooter from '../components/LandingFooter';
 
 const LandingPage = ({ setActiveTab, onLoginClick, isLoggedIn }) => {
   return (
+    <div style={{ position: 'relative' }}>
     <div style={{ position: 'relative', overflow: 'hidden', maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
-      
+
       {/* Landing Page Header */}
       <header style={{
         display: 'flex',
@@ -367,6 +369,9 @@ const LandingPage = ({ setActiveTab, onLoginClick, isLoggedIn }) => {
         </div>
       </section>
 
+    </div>
+
+    <LandingFooter />
     </div>
   );
 };
