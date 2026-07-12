@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 // Import Views
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import NotFoundPage from './pages/NotFoundPage';
 import Dashboard from './pages/Dashboard';
 import VehicleRegistry from './pages/VehicleRegistry';
 import DriverManagement from './pages/DriverManagement';
@@ -31,6 +32,12 @@ function AppContent() {
   const [showLogin, setShowLogin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const { isAuthenticated, initializing, notifications } = useApp();
+
+  // No router in this SPA — any path other than "/" was never linked to from
+  // inside the app, so it's an unknown/broken route.
+  if (window.location.pathname !== '/') {
+    return <NotFoundPage onGoHome={() => { window.location.href = '/'; }} />;
+  }
 
   if (initializing) {
     return (
@@ -63,7 +70,7 @@ function AppContent() {
       case 'expenses': return <Expenses />;
       case 'reports': return <Reports />;
       case 'settings': return <Settings />;
-      default: return <Dashboard />;
+      default: return <NotFoundPage onGoHome={() => setActiveTab('dashboard')} />;
     }
   };
 
