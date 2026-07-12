@@ -13,3 +13,5 @@ export const dispatchTrip = (id) => api.post(`/trips/${id}/dispatch`).then((r) =
 export const completeTrip = (id, body) => api.post(`/trips/${id}/complete`, body).then((r) => r.data);
 
 export const cancelTrip = (id) => api.post(`/trips/${id}/cancel`).then((r) => r.data);
+
+export const downloadTripsCsv = (params) => api.getBlob('/trips', { ...params, format: 'csv' });

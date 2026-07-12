@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatMoney } from '../utils/enums';
+import { downloadBlob } from '../utils/download';
 import * as reportsApi from '../api/reports';
 
 const Reports = () => {
   const { vehicles, reportsOverview, refreshReports, showToast } = useApp();
   const [vehicleFilter, setVehicleFilter] = useState('All');
-  const [exporting, setExporting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     refreshReports({ vehicleId: vehicleFilter !== 'All' ? vehicleFilter : undefined });
@@ -39,23 +41,30 @@ const Reports = () => {
   const handlePrint = () => window.print();
 
   const handleExportCsv = async () => {
-    setExporting(true);
+    setExportingCsv(true);
     try {
       const blob = await reportsApi.downloadReportsCsv({
         vehicleId: vehicleFilter !== 'All' ? vehicleFilter : undefined,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'transitops-report.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, 'transitops-report.csv');
     } catch (err) {
       showToast(err.message || 'Failed to export CSV', 'error');
     } finally {
-      setExporting(false);
+      setExportingCsv(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const blob = await reportsApi.downloadReportsPdf({
+        vehicleId: vehicleFilter !== 'All' ? vehicleFilter : undefined,
+      });
+      downloadBlob(blob, 'transitops-report.pdf');
+    } catch (err) {
+      showToast(err.message || 'Failed to export PDF', 'error');
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -158,9 +167,12 @@ const Reports = () => {
 
       {/* Print / Export */}
       <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
-        <button className="btn-action btn-action-dark" onClick={handlePrint}>Print / Export PDF</button>
-        <button className="btn-action btn-action-secondary" onClick={handleExportCsv} disabled={exporting}>
-          {exporting ? 'Exporting…' : 'Export CSV'}
+        <button className="btn-action btn-action-dark" onClick={handlePrint}>Print</button>
+        <button className="btn-action btn-action-secondary" onClick={handleExportPdf} disabled={exportingPdf}>
+          {exportingPdf ? 'Exporting…' : 'Export PDF'}
+        </button>
+        <button className="btn-action btn-action-secondary" onClick={handleExportCsv} disabled={exportingCsv}>
+          {exportingCsv ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
     </div>
